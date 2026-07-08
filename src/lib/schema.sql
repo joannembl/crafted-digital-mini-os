@@ -35,6 +35,7 @@ create table if not exists public.prospects (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   business_name text not null,
+  slug text,
   owner_name text,
   category text,
   phone text,
@@ -70,6 +71,7 @@ create table if not exists public.activities (
 );
 
 -- Safe Phase 3/4 upgrade columns for existing projects.
+alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
 alter table public.prospects add column if not exists demo_brief text;
 alter table public.prospects add column if not exists demo_copy text;
@@ -87,6 +89,14 @@ alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
 alter table public.prospects enable row level security;
 alter table public.activities enable row level security;
+
+
+-- Backfill readable slugs for existing prospects. The app also falls back to a generated slug if this is empty.
+update public.prospects
+set slug = regexp_replace(lower(trim(business_name)), '[^a-z0-9]+', '-', 'g')
+where slug is null or slug = '';
+
+create index if not exists prospects_workspace_slug_idx on public.prospects(workspace_id, slug);
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.profiles to authenticated;

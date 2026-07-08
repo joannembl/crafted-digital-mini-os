@@ -20,7 +20,7 @@ export function App() {
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
         <Route path="prospects" element={<ProspectsPage />} />
-        <Route path="prospects/:id" element={<ProspectWorkspacePage />} />
+        <Route path="prospects/:slug" element={<ProspectWorkspacePage />} />
         <Route path="demo-builder" element={<DemoBuilderPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="settings" element={<SettingsPage />} />

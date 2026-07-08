@@ -9,7 +9,7 @@ const emptyForm = {
 }
 
 export function ProspectsPage() {
-  const { prospects, createProspect, loading, error } = useProspects()
+  const { prospects, createProspect, loading, error, slugForProspect } = useProspects()
   const [query, setQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -70,7 +70,7 @@ export function ProspectsPage() {
         ) : (
           <div className="table-list">
             {filtered.map((prospect) => (
-              <Link className="prospect-row" to={`/prospects/${prospect.id}`} key={prospect.id}>
+              <Link className="prospect-row" to={`/prospects/${slugForProspect(prospect)}`} key={prospect.id}>
                 <div><strong>{prospect.business_name}</strong><span>{prospect.category || prospect.owner_name || 'No category yet'}</span></div>
                 <span className="badge">{labelFor(prospectStatuses, prospect.status)}</span>
                 <span className="badge muted">Demo: {labelFor(demoStatuses, prospect.demo_status)}</span>

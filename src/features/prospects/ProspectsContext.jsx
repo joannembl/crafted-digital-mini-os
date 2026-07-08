@@ -4,11 +4,28 @@ import { useWorkspace } from '../workspace/WorkspaceContext'
 
 const ProspectsContext = createContext(null)
 
-const STORAGE_KEY = 'crafted-digital-mini-os-phase-3'
+const STORAGE_KEY = 'crafted-digital-mini-os-phase-4'
+
+export function slugify(value = '') {
+  return value
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function prospectSlug(prospect) {
+  return prospect?.slug || slugify(prospect?.business_name || '') || prospect?.id
+}
 
 const seedProspects = [
   {
     id: 'local-prospect-1',
+    slug: 'cafe-mollie',
     workspace_id: 'local-workspace',
     business_name: 'Cafe Mollie',
     owner_name: '',
@@ -93,7 +110,7 @@ export function ProspectsProvider({ children }) {
 
     if (!isSupabaseConfigured) {
       const local = readLocal()
-      setProspects(local.prospects)
+      setProspects(local.prospects.map((prospect) => ({ ...prospect, slug: prospectSlug(prospect) })))
       setActivities(local.activities)
       setLoading(false)
       return
@@ -107,7 +124,7 @@ export function ProspectsProvider({ children }) {
     if (prospectsError || activitiesError) {
       setError(prospectsError?.message || activitiesError?.message)
     } else {
-      setProspects(prospectRows ?? [])
+      setProspects((prospectRows ?? []).map((prospect) => ({ ...prospect, slug: prospectSlug(prospect) })))
       setActivities(activityRows ?? [])
     }
     setLoading(false)
@@ -127,6 +144,7 @@ export function ProspectsProvider({ children }) {
     const row = {
       workspace_id: workspaceId,
       business_name: values.business_name,
+      slug: slugify(values.business_name),
       owner_name: values.owner_name || '',
       category: values.category || '',
       phone: values.phone || '',
@@ -158,19 +176,24 @@ export function ProspectsProvider({ children }) {
     }
 
     const { data, error } = await supabase.from('prospects').insert(row).select().single()
-    if (!error) setProspects((current) => [data, ...current])
+    if (!error) setProspects((current) => [{ ...data, slug: prospectSlug(data) }, ...current])
     return { data, error }
   }
 
   async function updateProspect(id, values) {
+    const nextValues = { ...values }
+    if (Object.prototype.hasOwnProperty.call(values, 'business_name')) {
+      nextValues.slug = slugify(values.business_name)
+    }
+
     if (!isSupabaseConfigured) {
-      const next = prospects.map((prospect) => prospect.id === id ? { ...prospect, ...values } : prospect)
+      const next = prospects.map((prospect) => prospect.id === id ? { ...prospect, ...nextValues } : prospect)
       persistLocal(next)
       return { data: next.find((prospect) => prospect.id === id), error: null }
     }
 
-    const { data, error } = await supabase.from('prospects').update(values).eq('id', id).select().single()
-    if (!error) setProspects((current) => current.map((prospect) => prospect.id === id ? data : prospect))
+    const { data, error } = await supabase.from('prospects').update(nextValues).eq('id', id).select().single()
+    if (!error) setProspects((current) => current.map((prospect) => prospect.id === id ? { ...data, slug: prospectSlug(data) } : prospect))
     return { data, error }
   }
 
@@ -229,7 +252,6 @@ export function ProspectsProvider({ children }) {
     return result
   }
 
-
   async function convertToClient(prospectId, values = {}) {
     const result = await updateProspect(prospectId, {
       status: 'won',
@@ -258,6 +280,7 @@ export function ProspectsProvider({ children }) {
     markDemoSent,
     convertToClient,
     refresh: loadProspects,
+    slugForProspect: prospectSlug,
   }), [prospects, activities, loading, error, loadProspects])
 
   return <ProspectsContext.Provider value={value}>{children}</ProspectsContext.Provider>
