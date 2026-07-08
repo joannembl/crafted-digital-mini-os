@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ExternalLink, Hammer, Send, Sparkles } from 'lucide-react'
+import { ChevronDown, ExternalLink, Hammer, Send, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useProspects } from '../prospects/ProspectsContext'
@@ -11,6 +11,7 @@ export function DemoBuilderPage() {
   const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
   const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
   const [saved, setSaved] = useState('')
+  const [isTutorialCollapsed, setIsTutorialCollapsed] = useState(false)
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -44,6 +45,69 @@ export function DemoBuilderPage() {
         </div>
         {saved && <span className="save-pill">{saved}</span>}
       </header>
+
+
+      <section className="panel collapsible-panel tutorial-panel">
+        <button
+          className="collapsible-panel-header"
+          type="button"
+          onClick={() => setIsTutorialCollapsed((current) => !current)}
+          aria-expanded={!isTutorialCollapsed}
+        >
+          <div>
+            <p className="eyebrow">Step-by-step</p>
+            <h2>How to use the Demo Builder</h2>
+          </div>
+          <ChevronDown className={isTutorialCollapsed ? 'chevron collapsed' : 'chevron'} size={18} />
+        </button>
+
+        {!isTutorialCollapsed && (
+          <div className="tutorial-steps">
+            <article className="tutorial-step">
+              <span>1</span>
+              <div>
+                <h3>Pick a prospect</h3>
+                <p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p>
+              </div>
+            </article>
+            <article className="tutorial-step">
+              <span>2</span>
+              <div>
+                <h3>Generate the plan</h3>
+                <p>Click <strong>Generate Demo Plan</strong> to create a starting brief, section outline, and website copy based on the prospect details.</p>
+              </div>
+            </article>
+            <article className="tutorial-step">
+              <span>3</span>
+              <div>
+                <h3>Refine the copy</h3>
+                <p>Edit the demo brief, site structure, and build notes so the demo feels personal to that business.</p>
+              </div>
+            </article>
+            <article className="tutorial-step">
+              <span>4</span>
+              <div>
+                <h3>Add the preview link</h3>
+                <p>Paste the Netlify, Cloudflare, or GitHub Pages preview URL into <strong>Preview URL</strong>.</p>
+              </div>
+            </article>
+            <article className="tutorial-step">
+              <span>5</span>
+              <div>
+                <h3>Mark the demo ready</h3>
+                <p>Use <strong>Mark Ready</strong> once the preview is good enough to show the owner.</p>
+              </div>
+            </article>
+            <article className="tutorial-step">
+              <span>6</span>
+              <div>
+                <h3>Send and follow up</h3>
+                <p>After you text, DM, or email the demo, click <strong>Mark Sent + Follow Up</strong>. The OS will schedule the next follow-up automatically.</p>
+              </div>
+            </article>
+          </div>
+        )}
+      </section>
 
       {demoProspects.length === 0 ? (
         <section className="panel empty-state">

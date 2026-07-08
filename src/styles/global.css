@@ -612,3 +612,64 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
 .collapsible-panel-header:focus-visible .chevron {
   color: var(--text);
 }
+
+
+/* Phase 7.6: Demo Builder tutorial */
+.tutorial-panel .collapsible-panel-header {
+  margin-bottom: 0;
+}
+
+.tutorial-steps {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.tutorial-step {
+  align-items: flex-start;
+  background: #fffaf2;
+  border: 1px solid #eee1cb;
+  border-radius: 18px;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.tutorial-step span {
+  align-items: center;
+  background: var(--text);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  font-weight: 900;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.tutorial-step h3 {
+  font-size: 0.98rem;
+  margin: 0 0 4px;
+}
+
+.tutorial-step p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .tutorial-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .tutorial-steps {
+    grid-template-columns: 1fr;
+  }
+}
