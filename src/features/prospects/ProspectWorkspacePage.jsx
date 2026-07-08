@@ -1,5 +1,5 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Save, Send } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Save, Send } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { slugify, useProspects } from './ProspectsContext'
@@ -14,6 +14,12 @@ export function ProspectWorkspacePage() {
   const [saved, setSaved] = useState(false)
   const [overviewDraft, setOverviewDraft] = useState({})
   const [clientNotesDraft, setClientNotesDraft] = useState('')
+  const [collapsedSections, setCollapsedSections] = useState({
+    clientDetails: false,
+    proposal: false,
+    demoTracker: false,
+    activityNotes: false,
+  })
 
   const prospectActivities = useMemo(() => activities.filter((activity) => activity.prospect_id === prospect?.id), [activities, prospect?.id])
 
@@ -46,6 +52,25 @@ export function ProspectWorkspacePage() {
 
   function updateOverviewDraft(field, value) {
     setOverviewDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function toggleSection(section) {
+    setCollapsedSections((current) => ({ ...current, [section]: !current[section] }))
+  }
+
+  function CollapsibleHeader({ section, title }) {
+    const isCollapsed = collapsedSections[section]
+    return (
+      <button
+        className="collapsible-panel-header"
+        type="button"
+        onClick={() => toggleSection(section)}
+        aria-expanded={!isCollapsed}
+      >
+        <h2>{title}</h2>
+        <ChevronDown className={isCollapsed ? 'chevron collapsed' : 'chevron'} size={18} />
+      </button>
+    )
   }
 
   async function saveOverviewChanges() {
@@ -113,8 +138,9 @@ export function ProspectWorkspacePage() {
           </div>
         </section>
 
-        <section className="panel">
-          <h2>Client details</h2>
+        <section className="panel collapsible-panel">
+          <CollapsibleHeader section="clientDetails" title="Client details" />
+          {!collapsedSections.clientDetails && (
           <div className="form-stack">
             {prospect.status !== 'won' && (
               <button className="primary-button full-width" type="button" onClick={() => convertToClient(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to convert client') : toast.success('Converted to client'))}>
@@ -136,11 +162,13 @@ export function ProspectWorkspacePage() {
             <label>Client notes<textarea value={clientNotesDraft} onChange={(e) => setClientNotesDraft(e.target.value)} onBlur={saveClientNotes} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
             <button className="secondary-button full-width" type="button" onClick={saveClientNotes}>Save Client Notes</button>
           </div>
+          )}
         </section>
 
 
-        <section className="panel">
-          <h2>Proposal</h2>
+        <section className="panel collapsible-panel">
+          <CollapsibleHeader section="proposal" title="Proposal" />
+          {!collapsedSections.proposal && (
           <div className="form-stack">
             <Link className="primary-button full-width" to="/proposals"><FileText size={16} /> Open Proposal Center</Link>
             <label>Proposal status
@@ -155,10 +183,12 @@ export function ProspectWorkspacePage() {
             <button className="secondary-button full-width" type="button" onClick={() => generateProposal(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to generate proposal') : toast.success('Proposal generated'))}><FileText size={16} /> Generate Proposal</button>
             <button className="secondary-button full-width" type="button" onClick={() => markProposalSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark proposal sent') : toast.success('Proposal marked sent'))}><Send size={16} /> Mark Sent + Follow Up</button>
           </div>
+          )}
         </section>
 
-        <section className="panel">
-          <h2>Demo tracker</h2>
+        <section className="panel collapsible-panel">
+          <CollapsibleHeader section="demoTracker" title="Demo tracker" />
+          {!collapsedSections.demoTracker && (
           <div className="form-stack">
             <Link className="primary-button full-width" to="/demo-builder">Open Demo Builder</Link>
             <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
@@ -167,11 +197,14 @@ export function ProspectWorkspacePage() {
             <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
             <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
           </div>
+          )}
         </section>
       </div>
 
-      <section className="panel">
-        <h2>Activity & notes</h2>
+      <section className="panel collapsible-panel">
+        <CollapsibleHeader section="activityNotes" title="Activity & notes" />
+        {!collapsedSections.activityNotes && (
+        <>
         <form className="activity-form" onSubmit={handleActivity}>
           <select value={activityType} onChange={(e) => setActivityType(e.target.value)}>
             {['Note', 'Call', 'Email', 'DM', 'Meeting', 'Demo'].map((type) => <option key={type}>{type}</option>)}
@@ -188,6 +221,8 @@ export function ProspectWorkspacePage() {
             </article>
           ))}
         </div>
+        </>
+        )}
       </section>
     </div>
   )

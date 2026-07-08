@@ -575,3 +575,40 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
 .button-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .compact-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee7da; }
 .success { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #eef9ed; color: #23551f; font-weight: 700; }
+
+.collapsible-panel {
+  overflow: hidden;
+}
+
+.collapsible-panel-header {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  margin: -0.15rem 0 1rem;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.collapsible-panel-header h2 {
+  margin: 0;
+}
+
+.collapsible-panel-header .chevron {
+  color: var(--muted);
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.collapsible-panel-header .chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.collapsible-panel-header:hover .chevron,
+.collapsible-panel-header:focus-visible .chevron {
+  color: var(--text);
+}
