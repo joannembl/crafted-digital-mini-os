@@ -11,15 +11,25 @@ export function ProspectWorkspacePage() {
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
   const [saved, setSaved] = useState(false)
-  const [mainNotesDraft, setMainNotesDraft] = useState('')
+  const [overviewDraft, setOverviewDraft] = useState({})
   const [clientNotesDraft, setClientNotesDraft] = useState('')
 
   const prospectActivities = useMemo(() => activities.filter((activity) => activity.prospect_id === prospect?.id), [activities, prospect?.id])
 
   useEffect(() => {
-    setMainNotesDraft(prospect?.notes || '')
+    setOverviewDraft({
+      owner_name: prospect?.owner_name || '',
+      category: prospect?.category || '',
+      phone: prospect?.phone || '',
+      email: prospect?.email || '',
+      website: prospect?.website || '',
+      instagram: prospect?.instagram || '',
+      status: prospect?.status || 'research',
+      next_follow_up: prospect?.next_follow_up || '',
+      notes: prospect?.notes || '',
+    })
     setClientNotesDraft(prospect?.client_notes || '')
-  }, [prospect?.id, prospect?.notes, prospect?.client_notes])
+  }, [prospect?.id])
 
   if (!prospect) return <Navigate to="/prospects" replace />
 
@@ -32,9 +42,23 @@ export function ProspectWorkspacePage() {
     }
   }
 
-  async function saveMainNotes() {
-    if ((prospect.notes || '') === mainNotesDraft) return
-    await patch({ notes: mainNotesDraft })
+  function updateOverviewDraft(field, value) {
+    setOverviewDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  async function saveOverviewChanges() {
+    await patch({
+      owner_name: overviewDraft.owner_name || null,
+      category: overviewDraft.category || null,
+      phone: overviewDraft.phone || null,
+      email: overviewDraft.email || null,
+      website: overviewDraft.website || null,
+      instagram: overviewDraft.instagram || null,
+      status: overviewDraft.status || 'research',
+      converted_at: overviewDraft.status === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at,
+      next_follow_up: overviewDraft.next_follow_up || null,
+      notes: overviewDraft.notes || null,
+    })
   }
 
   async function saveClientNotes() {
@@ -66,16 +90,16 @@ export function ProspectWorkspacePage() {
         <section className="panel">
           <h2>Overview</h2>
           <div className="form-grid compact">
-            <label>Owner<input value={prospect.owner_name || ''} onChange={(e) => patch({ owner_name: e.target.value })} /></label>
-            <label>Category<input value={prospect.category || ''} onChange={(e) => patch({ category: e.target.value })} /></label>
-            <label>Phone<input value={prospect.phone || ''} onChange={(e) => patch({ phone: e.target.value })} /></label>
-            <label>Email<input value={prospect.email || ''} onChange={(e) => patch({ email: e.target.value })} /></label>
-            <label>Website<input value={prospect.website || ''} onChange={(e) => patch({ website: e.target.value })} /></label>
-            <label>Instagram<input value={prospect.instagram || ''} onChange={(e) => patch({ instagram: e.target.value })} /></label>
-            <label>Status<select value={prospect.status || 'research'} onChange={(e) => patch({ status: e.target.value, converted_at: e.target.value === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at })}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
-            <label>Next follow-up<input type="date" value={prospect.next_follow_up || ''} onChange={(e) => patch({ next_follow_up: e.target.value || null })} /></label>
-            <label className="span-2">Main notes<textarea value={mainNotesDraft} onChange={(e) => setMainNotesDraft(e.target.value)} onBlur={saveMainNotes} /></label>
-            <div className="form-actions span-2"><button className="secondary-button" type="button" onClick={saveMainNotes}>Save Main Notes</button></div>
+            <label>Owner<input value={overviewDraft.owner_name || ''} onChange={(e) => updateOverviewDraft('owner_name', e.target.value)} /></label>
+            <label>Category<input value={overviewDraft.category || ''} onChange={(e) => updateOverviewDraft('category', e.target.value)} /></label>
+            <label>Phone<input value={overviewDraft.phone || ''} onChange={(e) => updateOverviewDraft('phone', e.target.value)} /></label>
+            <label>Email<input value={overviewDraft.email || ''} onChange={(e) => updateOverviewDraft('email', e.target.value)} /></label>
+            <label>Website<input value={overviewDraft.website || ''} onChange={(e) => updateOverviewDraft('website', e.target.value)} /></label>
+            <label>Instagram<input value={overviewDraft.instagram || ''} onChange={(e) => updateOverviewDraft('instagram', e.target.value)} /></label>
+            <label>Status<select value={overviewDraft.status || 'research'} onChange={(e) => updateOverviewDraft('status', e.target.value)}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+            <label>Next follow-up<input type="date" value={overviewDraft.next_follow_up || ''} onChange={(e) => updateOverviewDraft('next_follow_up', e.target.value)} /></label>
+            <label className="span-2">Main notes<textarea value={overviewDraft.notes || ''} onChange={(e) => updateOverviewDraft('notes', e.target.value)} /></label>
+            <div className="form-actions span-2"><button className="primary-button" type="button" onClick={saveOverviewChanges}>Save changes</button></div>
           </div>
         </section>
 
