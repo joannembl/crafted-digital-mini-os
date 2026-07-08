@@ -25,6 +25,12 @@ const seedProspects = [
     demo_copy: 'Hero: A cozy neighborhood cafe with handcrafted drinks and friendly service. Sections: Featured drinks, about the cafe, menu preview, visit us, contact.',
     demo_notes: 'Use warm photos, simple menu cards, and clear call-to-action buttons.',
     demo_last_sent: null,
+    package_type: 'Website, Handled',
+    monthly_price: 99,
+    setup_fee: 99,
+    add_ons: '',
+    client_notes: '',
+    converted_at: null,
     next_follow_up: new Date().toISOString().slice(0, 10),
     notes: 'Demo built. Send a short personal follow-up.',
     created_at: new Date().toISOString(),
@@ -135,6 +141,12 @@ export function ProspectsProvider({ children }) {
       demo_copy: values.demo_copy || '',
       demo_notes: values.demo_notes || '',
       demo_last_sent: values.demo_last_sent || null,
+      package_type: values.package_type || '',
+      monthly_price: values.monthly_price === '' || values.monthly_price == null ? null : Number(values.monthly_price),
+      setup_fee: values.setup_fee === '' || values.setup_fee == null ? null : Number(values.setup_fee),
+      add_ons: values.add_ons || '',
+      client_notes: values.client_notes || '',
+      converted_at: values.converted_at || null,
       next_follow_up: values.next_follow_up || null,
       notes: values.notes || '',
     }
@@ -217,6 +229,22 @@ export function ProspectsProvider({ children }) {
     return result
   }
 
+
+  async function convertToClient(prospectId, values = {}) {
+    const result = await updateProspect(prospectId, {
+      status: 'won',
+      demo_status: 'live',
+      package_type: values.package_type || 'Website, Handled',
+      monthly_price: values.monthly_price === '' || values.monthly_price == null ? 99 : Number(values.monthly_price),
+      setup_fee: values.setup_fee === '' || values.setup_fee == null ? 99 : Number(values.setup_fee),
+      add_ons: values.add_ons || '',
+      client_notes: values.client_notes || '',
+      converted_at: new Date().toISOString(),
+    })
+    if (!result.error) await addActivity(prospectId, { type: 'Client', note: 'Converted prospect to client.' })
+    return result
+  }
+
   const value = useMemo(() => ({
     prospects,
     activities,
@@ -228,6 +256,7 @@ export function ProspectsProvider({ children }) {
     generateDemoPlan,
     markDemoReady,
     markDemoSent,
+    convertToClient,
     refresh: loadProspects,
   }), [prospects, activities, loading, error, loadProspects])
 

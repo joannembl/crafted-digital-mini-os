@@ -187,3 +187,274 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     position: static;
   }
 }
+
+/* Phase 4: collapsible navigation + responsive polish */
+.sidebar {
+  transition: width .2s ease, padding .2s ease, transform .2s ease;
+  width: 280px;
+  min-height: 100vh;
+}
+
+.app-shell {
+  grid-template-columns: 280px minmax(0, 1fr);
+  transition: grid-template-columns .2s ease;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  width: 86px;
+  padding: 20px 14px;
+  align-items: center;
+}
+
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.brand-text,
+.nav-link span,
+.collapse-button span,
+.sidebar-footer,
+.user-card-text {
+  transition: opacity .15s ease, width .15s ease;
+}
+
+.app-shell.sidebar-collapsed .brand-text,
+.app-shell.sidebar-collapsed .nav-link span,
+.app-shell.sidebar-collapsed .collapse-button span,
+.app-shell.sidebar-collapsed .workspace-pill,
+.app-shell.sidebar-collapsed .user-card-text {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-shell.sidebar-collapsed .nav-link,
+.app-shell.sidebar-collapsed .collapse-button {
+  justify-content: center;
+  padding-inline: 0;
+  width: 48px;
+}
+
+.app-shell.sidebar-collapsed .user-card {
+  padding: 8px;
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .brand {
+  justify-content: center;
+}
+
+.collapse-button {
+  border: 1px solid #34372f;
+  border-radius: 14px;
+  background: #20231d;
+  color: #d7d0c2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.collapse-button:hover {
+  background: #282b23;
+  color: #fff;
+}
+
+.mobile-menu-button,
+.mobile-close,
+.sidebar-backdrop {
+  display: none;
+}
+
+.small-muted {
+  margin: 0;
+  color: #6b6f65;
+  font-size: .92rem;
+}
+
+.client-list {
+  display: grid;
+  gap: 12px;
+}
+
+.client-card {
+  border: 1px solid #e7e1d4;
+  border-radius: 20px;
+  padding: 18px;
+  background: #fbfaf7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.client-card h2,
+.client-card p {
+  margin-top: 0;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inline-empty {
+  min-height: 180px;
+}
+
+@media (max-width: 1100px) {
+  .card-grid.client-metrics,
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    background: #f6f4ef;
+  }
+
+  .app-shell,
+  .app-shell.sidebar-collapsed {
+    display: block;
+  }
+
+  .mobile-menu-button {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #ded7c8;
+    border-radius: 14px;
+    background: #fff;
+    color: #171915;
+    box-shadow: 0 12px 30px rgba(31, 33, 28, .12);
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 70;
+    width: min(320px, 86vw) !important;
+    transform: translateX(-105%);
+    padding: 22px !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-nav-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .mobile-nav-open .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(23, 25, 21, .45);
+  }
+
+  .mobile-close {
+    display: grid;
+  }
+
+  .collapse-button {
+    display: none;
+  }
+
+  .app-shell.sidebar-collapsed .brand-text,
+  .app-shell.sidebar-collapsed .nav-link span,
+  .app-shell.sidebar-collapsed .workspace-pill,
+  .app-shell.sidebar-collapsed .user-card-text {
+    width: auto;
+    opacity: 1;
+    overflow: visible;
+    pointer-events: auto;
+  }
+
+  .app-shell.sidebar-collapsed .nav-link {
+    justify-content: flex-start;
+    width: auto;
+    padding: 12px 14px;
+  }
+
+  .app-shell.sidebar-collapsed .user-card {
+    padding: 12px;
+    justify-content: space-between;
+  }
+
+  .main-content {
+    padding: 72px 16px 24px;
+  }
+
+  .page-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .panel,
+  .metric-card,
+  .auth-card {
+    border-radius: 20px;
+  }
+
+  .card-grid,
+  .card-grid.client-metrics,
+  .form-grid,
+  .workspace-grid,
+  .dashboard-grid,
+  .activity-form,
+  .prospect-row,
+  .builder-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .toolbar,
+  .builder-title-row,
+  .action-row,
+  .link-row,
+  .client-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .client-actions,
+  .form-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .client-actions .primary-button,
+  .client-actions .secondary-button,
+  .form-actions .primary-button,
+  .form-actions .secondary-button {
+    width: 100%;
+  }
+
+  .table-list {
+    gap: 12px;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 12vw, 2.6rem);
+  }
+}

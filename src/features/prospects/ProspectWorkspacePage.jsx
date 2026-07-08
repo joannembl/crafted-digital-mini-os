@@ -1,12 +1,12 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ExternalLink, Save } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ExternalLink, Save } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 export function ProspectWorkspacePage() {
   const { id } = useParams()
-  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent } = useProspects()
+  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent, convertToClient } = useProspects()
   const prospect = prospects.find((item) => item.id === id)
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
@@ -54,9 +54,33 @@ export function ProspectWorkspacePage() {
             <label>Email<input value={prospect.email || ''} onChange={(e) => patch({ email: e.target.value })} /></label>
             <label>Website<input value={prospect.website || ''} onChange={(e) => patch({ website: e.target.value })} /></label>
             <label>Instagram<input value={prospect.instagram || ''} onChange={(e) => patch({ instagram: e.target.value })} /></label>
-            <label>Status<select value={prospect.status || 'research'} onChange={(e) => patch({ status: e.target.value })}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+            <label>Status<select value={prospect.status || 'research'} onChange={(e) => patch({ status: e.target.value, converted_at: e.target.value === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at })}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Next follow-up<input type="date" value={prospect.next_follow_up || ''} onChange={(e) => patch({ next_follow_up: e.target.value || null })} /></label>
             <label className="span-2">Main notes<textarea value={prospect.notes || ''} onChange={(e) => patch({ notes: e.target.value })} /></label>
+          </div>
+        </section>
+
+        <section className="panel">
+          <h2>Client details</h2>
+          <div className="form-stack">
+            {prospect.status !== 'won' && (
+              <button className="primary-button full-width" type="button" onClick={() => convertToClient(prospect.id)}>
+                <BriefcaseBusiness size={16} /> Convert to Client
+              </button>
+            )}
+            <label>Package
+              <select value={prospect.package_type || ''} onChange={(e) => patch({ package_type: e.target.value })}>
+                <option value="">Select package</option>
+                <option value="Website, Handled">Website, Handled</option>
+                <option value="Build & Own">Build & Own</option>
+                <option value="Care Plan">Care Plan</option>
+              </select>
+            </label>
+            <label>Monthly price<input type="number" min="0" value={prospect.monthly_price ?? ''} onChange={(e) => patch({ monthly_price: e.target.value === '' ? null : Number(e.target.value) })} placeholder="99" /></label>
+            <label>Setup fee<input type="number" min="0" value={prospect.setup_fee ?? ''} onChange={(e) => patch({ setup_fee: e.target.value === '' ? null : Number(e.target.value) })} placeholder="99" /></label>
+            <label>Add-ons<input value={prospect.add_ons || ''} onChange={(e) => patch({ add_ons: e.target.value })} placeholder="Booking, contact form, online store" /></label>
+            <label>Live URL<input value={prospect.live_url || ''} onChange={(e) => patch({ live_url: e.target.value })} placeholder="https://clientsite.com" /></label>
+            <label>Client notes<textarea value={prospect.client_notes || ''} onChange={(e) => patch({ client_notes: e.target.value })} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
           </div>
         </section>
 
