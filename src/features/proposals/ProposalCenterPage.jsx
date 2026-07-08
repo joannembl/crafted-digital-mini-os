@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Clipboard, FileText, Send } from 'lucide-react'
 import { useProspects } from '../prospects/ProspectsContext'
+import toast from 'react-hot-toast'
 
 function copyText(text, setCopied) {
   navigator.clipboard?.writeText(text)
   setCopied(true)
+  toast.success('Message copied')
   window.setTimeout(() => setCopied(false), 1200)
 }
 
@@ -22,7 +24,10 @@ export function ProposalCenterPage() {
     const result = await generateProposal(selected.id)
     if (!result.error) {
       setSaved('Proposal generated')
+      toast.success('Proposal generated')
       window.setTimeout(() => setSaved(''), 1400)
+    } else {
+      toast.error(result.error.message || 'Unable to generate proposal')
     }
   }
 
@@ -31,7 +36,10 @@ export function ProposalCenterPage() {
     const result = await markProposalSent(selected.id)
     if (!result.error) {
       setSaved('Proposal marked sent')
+      toast.success('Proposal marked sent')
       window.setTimeout(() => setSaved(''), 1400)
+    } else {
+      toast.error(result.error.message || 'Unable to mark proposal sent')
     }
   }
 

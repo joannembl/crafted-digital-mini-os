@@ -1,6 +1,7 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Save, Send } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { slugify, useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
@@ -40,6 +41,7 @@ export function ProspectWorkspacePage() {
       setSaved(true)
       window.setTimeout(() => setSaved(false), 1200)
     }
+    return result
   }
 
   function updateOverviewDraft(field, value) {
@@ -47,7 +49,7 @@ export function ProspectWorkspacePage() {
   }
 
   async function saveOverviewChanges() {
-    await patch({
+    const result = await patch({
       owner_name: overviewDraft.owner_name || null,
       category: overviewDraft.category || null,
       phone: overviewDraft.phone || null,
@@ -59,18 +61,26 @@ export function ProspectWorkspacePage() {
       next_follow_up: overviewDraft.next_follow_up || null,
       notes: overviewDraft.notes || null,
     })
+    if (!result?.error) toast.success('Changes saved')
+    else toast.error(result.error.message || 'Unable to save changes')
   }
 
   async function saveClientNotes() {
     if ((prospect.client_notes || '') === clientNotesDraft) return
-    await patch({ client_notes: clientNotesDraft })
+    const result = await patch({ client_notes: clientNotesDraft })
+    if (!result?.error) toast.success('Client notes saved')
   }
 
   async function handleActivity(event) {
     event.preventDefault()
     if (!note.trim()) return
     const result = await addActivity(prospect.id, { type: activityType, note })
-    if (!result.error) setNote('')
+    if (!result.error) {
+      setNote('')
+      toast.success('Note added')
+    } else {
+      toast.error(result.error.message || 'Unable to add note')
+    }
   }
 
   return (
@@ -107,7 +117,7 @@ export function ProspectWorkspacePage() {
           <h2>Client details</h2>
           <div className="form-stack">
             {prospect.status !== 'won' && (
-              <button className="primary-button full-width" type="button" onClick={() => convertToClient(prospect.id)}>
+              <button className="primary-button full-width" type="button" onClick={() => convertToClient(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to convert client') : toast.success('Converted to client'))}>
                 <BriefcaseBusiness size={16} /> Convert to Client
               </button>
             )}
@@ -142,8 +152,8 @@ export function ProspectWorkspacePage() {
                 <option value="declined">Declined</option>
               </select>
             </label>
-            <button className="secondary-button full-width" type="button" onClick={() => generateProposal(prospect.id)}><FileText size={16} /> Generate Proposal</button>
-            <button className="secondary-button full-width" type="button" onClick={() => markProposalSent(prospect.id)}><Send size={16} /> Mark Sent + Follow Up</button>
+            <button className="secondary-button full-width" type="button" onClick={() => generateProposal(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to generate proposal') : toast.success('Proposal generated'))}><FileText size={16} /> Generate Proposal</button>
+            <button className="secondary-button full-width" type="button" onClick={() => markProposalSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark proposal sent') : toast.success('Proposal marked sent'))}><Send size={16} /> Mark Sent + Follow Up</button>
           </div>
         </section>
 
@@ -154,8 +164,8 @@ export function ProspectWorkspacePage() {
             <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Preview URL<input value={prospect.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
             {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
-            <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url)}>Mark Demo Ready</button>
-            <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id)}>Mark Sent + Follow Up</button>
+            <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
+            <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
           </div>
         </section>
       </div>

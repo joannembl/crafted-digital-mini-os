@@ -5,6 +5,7 @@ import { App } from './App'
 import { AuthProvider } from './features/auth/AuthContext'
 import { WorkspaceProvider } from './features/workspace/WorkspaceContext'
 import { ProspectsProvider } from './features/prospects/ProspectsContext'
+import { Toaster } from 'react-hot-toast'
 import './styles/global.css'
 
 createRoot(document.getElementById('root')).render(
@@ -13,7 +14,10 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <WorkspaceProvider>
           <ProspectsProvider>
-            <App />
+            <>
+              <App />
+              <Toaster position="top-right" toastOptions={{ duration: 3200 }} />
+            </>
           </ProspectsProvider>
         </WorkspaceProvider>
       </AuthProvider>

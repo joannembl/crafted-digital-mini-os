@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { useWorkspace } from './WorkspaceContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
 
 function makeInviteCode() {
   return Array.from(crypto.getRandomValues(new Uint8Array(6)))
@@ -52,6 +53,7 @@ export function SettingsPage() {
       const code = 'DEMO123'
       setInviteCode(code)
       setInviteMessage('Demo invite code generated.')
+      toast.success('Demo invite code generated')
       return
     }
 
@@ -68,17 +70,20 @@ export function SettingsPage() {
 
     if (createError) {
       setInviteError(createError.message)
+      toast.error(createError.message || 'Unable to create invite code')
       return
     }
 
     setInviteCode(code)
     setInviteMessage('Invite code created. Send this code to your teammate.')
+    toast.success('Invite code generated')
   }
 
   async function copyInvite() {
     if (!shareText) return
     await navigator.clipboard.writeText(shareText)
     setInviteMessage('Invite copied to clipboard.')
+    toast.success('Invite copied')
   }
 
   async function acceptInvite(event) {
@@ -89,11 +94,13 @@ export function SettingsPage() {
     const normalizedCode = acceptCode.trim().toUpperCase()
     if (!normalizedCode) {
       setInviteError('Enter an invite code first.')
+      toast.error('Enter an invite code first')
       return
     }
 
     if (!isSupabaseConfigured) {
       setInviteMessage('Demo mode accepted the invite code.')
+      toast.success('Invite accepted')
       return
     }
 
@@ -108,6 +115,7 @@ export function SettingsPage() {
     if (inviteLookupError || !invite) {
       setSavingInvite(false)
       setInviteError(inviteLookupError?.message || 'That invite code was not found.')
+      toast.error(inviteLookupError?.message || 'That invite code was not found')
       return
     }
 
@@ -121,11 +129,13 @@ export function SettingsPage() {
 
     if (memberError) {
       setInviteError(memberError.message)
+      toast.error(memberError.message || 'Unable to join workspace')
       return
     }
 
     setAcceptCode('')
     setInviteMessage('Invite accepted. You are now connected to the shared workspace.')
+    toast.success('Invite accepted')
     await reloadWorkspace()
   }
 

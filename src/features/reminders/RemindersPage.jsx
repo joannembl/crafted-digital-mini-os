@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, CheckCircle2, Clock3, RotateCw } from 'lucide-react'
 import { useProspects } from '../prospects/ProspectsContext'
+import toast from 'react-hot-toast'
 
 function todayString() {
   return new Date().toISOString().slice(0, 10)
@@ -25,14 +26,21 @@ function ReminderCard({ prospect, slug, onComplete, onSnooze }) {
 
   async function complete() {
     setSaving(true)
-    await onComplete(prospect.id, note)
-    setNote('')
+    const result = await onComplete(prospect.id, note)
+    if (!result?.error) {
+      setNote('')
+      toast.success('Follow-up completed')
+    } else {
+      toast.error(result.error.message || 'Unable to complete follow-up')
+    }
     setSaving(false)
   }
 
   async function snooze(days) {
     setSaving(true)
-    await onSnooze(prospect.id, days)
+    const result = await onSnooze(prospect.id, days)
+    if (!result?.error) toast.success(days === 7 ? 'Snoozed until next week' : 'Snoozed 2 days')
+    else toast.error(result.error.message || 'Unable to snooze follow-up')
     setSaving(false)
   }
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ExternalLink, Hammer, Send, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useProspects } from '../prospects/ProspectsContext'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
 
@@ -18,6 +19,7 @@ export function DemoBuilderPage() {
       setSaved(message)
       window.setTimeout(() => setSaved(''), 1400)
     }
+    return result
   }
 
   async function runAction(action, message) {
@@ -25,7 +27,10 @@ export function DemoBuilderPage() {
     const result = await action(selected.id)
     if (!result.error) {
       setSaved(message)
+      toast.success(message)
       window.setTimeout(() => setSaved(''), 1400)
+    } else {
+      toast.error(result.error.message || 'Action failed')
     }
   }
 
@@ -80,7 +85,7 @@ export function DemoBuilderPage() {
               <button className="primary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
                 <Sparkles size={16} /> Generate Demo Plan
               </button>
-              <button className="secondary-button" type="button" onClick={() => markDemoReady(selected.id, selected.preview_url).then((result) => !result.error && setSaved('Demo marked ready'))}>
+              <button className="secondary-button" type="button" onClick={() => markDemoReady(selected.id, selected.preview_url).then((result) => { if (!result.error) { setSaved('Demo marked ready'); toast.success('Demo marked ready') } else toast.error(result.error.message || 'Unable to mark demo ready') })}>
                 <Hammer size={16} /> Mark Ready
               </button>
               <button className="secondary-button" type="button" onClick={() => runAction(markDemoSent, 'Demo marked sent')}>

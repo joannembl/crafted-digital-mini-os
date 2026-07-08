@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
@@ -25,6 +26,9 @@ export function ProspectsPage() {
     if (!result.error) {
       setForm(emptyForm)
       setShowForm(false)
+      toast.success('Prospect created')
+    } else {
+      toast.error(result.error.message || 'Unable to create prospect')
     }
   }
 
