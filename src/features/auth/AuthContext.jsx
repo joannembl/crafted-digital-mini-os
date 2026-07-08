@@ -51,7 +51,14 @@ export function AuthProvider({ children }) {
     return supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: {
+          full_name: fullName,
+        },
+        emailRedirectTo: import.meta.env.DEV
+          ? "http://localhost:5173"
+          : "https://joannembl.github.io/crafted-digital-mini-os/",
+      },
     })
   }
 

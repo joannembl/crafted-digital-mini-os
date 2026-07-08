@@ -1,2 +1,59 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+
+# Environment variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Temporary files
+*.swp
+*.swo
+*.tmp
+*.temp
+
+# Coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Supabase local development
+.supabase/
+
+# Netlify
+.netlify/
+
+# Local certificates
+*.pem
+
+# Misc
+.cache/
