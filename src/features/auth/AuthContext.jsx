@@ -52,12 +52,10 @@ export function AuthProvider({ children }) {
       email,
       password,
       options: {
-        data: {
-          full_name: fullName,
-        },
+        data: { full_name: fullName },
         emailRedirectTo: import.meta.env.DEV
-          ? "http://localhost:5173"
-          : "https://joannembl.github.io/crafted-digital-mini-os/",
+          ? 'http://localhost:5173'
+          : 'https://joannembl.github.io/crafted-digital-mini-os/',
       },
     })
   }

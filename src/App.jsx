@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
-import { useAuth } from './features/auth/AuthContext'
 import { AuthPage } from './features/auth/AuthPage'
+import { useAuth } from './features/auth/AuthContext'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { PlaceholderPage } from './features/dashboard/PlaceholderPage'
+import { ProspectsPage } from './features/prospects/ProspectsPage'
+import { ProspectWorkspacePage } from './features/prospects/ProspectWorkspacePage'
 import { SettingsPage } from './features/workspace/SettingsPage'
 
 export function App() {
@@ -16,8 +18,9 @@ export function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
-        <Route path="prospects" element={<PlaceholderPage title="Prospects" description="Your simple lead list will live here." next="Phase 2: Add prospects, stages, follow-up dates, and quick notes." />} />
-        <Route path="demo-builder" element={<PlaceholderPage title="Demo Builder" description="A focused page for building and tracking demo sites." next="Phase 3: Pick a prospect, generate demo details, save preview URL, and mark demo ready." />} />
+        <Route path="prospects" element={<ProspectsPage />} />
+        <Route path="prospects/:id" element={<ProspectWorkspacePage />} />
+        <Route path="demo-builder" element={<PlaceholderPage title="Demo Builder" description="For Phase 2, demo tracking lives inside each Prospect Workspace." next="Phase 3: Generate demo copy/site details, save preview URL, and mark demo ready from a focused builder." />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

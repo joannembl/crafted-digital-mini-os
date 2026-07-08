@@ -1,19 +1,22 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import { App } from './App'
 import { AuthProvider } from './features/auth/AuthContext'
 import { WorkspaceProvider } from './features/workspace/WorkspaceContext'
+import { ProspectsProvider } from './features/prospects/ProspectsContext'
 import './styles/global.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <WorkspaceProvider>
-          <App />
+          <ProspectsProvider>
+            <App />
+          </ProspectsProvider>
         </WorkspaceProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>,
 )
