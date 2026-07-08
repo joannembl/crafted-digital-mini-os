@@ -567,3 +567,11 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     width: 100%;
   }
 }
+
+.invite-card { display: grid; gap: 14px; }
+.invite-code-box { border: 1px dashed #cfc4ad; background: #fffaf0; border-radius: 18px; padding: 18px; display: grid; gap: 6px; }
+.invite-code-box span { color: #7c7668; font-size: 0.86rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.invite-code-box strong { font-size: clamp(1.8rem, 5vw, 2.8rem); letter-spacing: 0.12em; }
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.compact-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee7da; }
+.success { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #eef9ed; color: #23551f; font-weight: 700; }

@@ -1,4 +1,4 @@
--- Crafted Digital Mini OS — Phase 5 Supabase Schema
+-- Crafted Digital Mini OS — Phase 7 Supabase Schema
 -- Safe to run multiple times in Supabase SQL Editor.
 
 create extension if not exists "pgcrypto";
@@ -29,6 +29,16 @@ create table if not exists public.workspace_members (
   role public.workspace_role not null default 'member',
   created_at timestamptz not null default now(),
   unique(workspace_id, user_id)
+);
+
+create table if not exists public.workspace_invites (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  code text not null unique,
+  role public.workspace_role not null default 'member',
+  created_by uuid references public.profiles(id) on delete set null,
+  revoked boolean not null default false,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.prospects (
@@ -93,6 +103,7 @@ alter table public.prospects add column if not exists converted_at timestamptz;
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
+alter table public.workspace_invites enable row level security;
 alter table public.prospects enable row level security;
 alter table public.activities enable row level security;
 
@@ -108,8 +119,44 @@ grant usage on schema public to authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.workspaces to authenticated;
 grant select, insert, update, delete on public.workspace_members to authenticated;
+grant select, insert, update, delete on public.workspace_invites to authenticated;
 grant select, insert, update, delete on public.prospects to authenticated;
 grant select, insert, update, delete on public.activities to authenticated;
+
+
+-- Helper functions avoid self-referencing RLS recursion.
+create or replace function public.is_workspace_member(target_workspace_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = target_workspace_id
+      and wm.user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_workspace_owner(target_workspace_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.workspaces w
+    where w.id = target_workspace_id
+      and w.owner_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+grant execute on function public.is_workspace_owner(uuid) to authenticated;
 
 -- Safe re-run: remove old policy definitions before recreating them.
 drop policy if exists "Users can read their own profile" on public.profiles;
@@ -128,6 +175,13 @@ drop policy if exists "Users can view own workspace memberships" on public.works
 drop policy if exists "Users can create own workspace membership" on public.workspace_members;
 drop policy if exists "Users can update own workspace membership" on public.workspace_members;
 drop policy if exists "Users can delete own workspace membership" on public.workspace_members;
+drop policy if exists "Workspace members can read workspace membership" on public.workspace_members;
+drop policy if exists "Users can join a workspace as themselves" on public.workspace_members;
+drop policy if exists "Owners can read workspace invites" on public.workspace_invites;
+drop policy if exists "Authenticated users can read active invite codes" on public.workspace_invites;
+drop policy if exists "Owners can create workspace invites" on public.workspace_invites;
+drop policy if exists "Owners can update workspace invites" on public.workspace_invites;
+drop policy if exists "Owners can delete workspace invites" on public.workspace_invites;
 
 drop policy if exists "Members can read prospects" on public.prospects;
 drop policy if exists "Members can create prospects" on public.prospects;
@@ -144,45 +198,54 @@ create policy "Users can read their own profile" on public.profiles for select t
 create policy "Users can update their own profile" on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
 create policy "Users can insert their own profile" on public.profiles for insert to authenticated with check (auth.uid() = id);
 
--- Workspaces: owner-first policies to avoid workspace_members recursion during bootstrap.
+-- Workspaces
 create policy "Users can create owned workspaces" on public.workspaces for insert to authenticated with check (owner_id = auth.uid());
-create policy "Owners can read their workspaces" on public.workspaces for select to authenticated using (owner_id = auth.uid());
+create policy "Owners can read their workspaces" on public.workspaces for select to authenticated using (owner_id = auth.uid() or public.is_workspace_member(id));
 create policy "Owners can update their workspaces" on public.workspaces for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
--- Workspace members: intentionally non-recursive.
-create policy "Users can view own workspace memberships" on public.workspace_members for select to authenticated using (user_id = auth.uid());
-create policy "Users can create own workspace membership" on public.workspace_members for insert to authenticated with check (user_id = auth.uid());
+-- Workspace members: helper functions avoid recursive policies.
+create policy "Workspace members can read workspace membership" on public.workspace_members for select to authenticated using (public.is_workspace_member(workspace_id));
+create policy "Users can join a workspace as themselves" on public.workspace_members for insert to authenticated with check (
+  user_id = auth.uid() and (role = 'member' or public.is_workspace_owner(workspace_id))
+);
 create policy "Users can update own workspace membership" on public.workspace_members for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "Users can delete own workspace membership" on public.workspace_members for delete to authenticated using (user_id = auth.uid());
+create policy "Users can delete own workspace membership" on public.workspace_members for delete to authenticated using (user_id = auth.uid() or public.is_workspace_owner(workspace_id));
+
+-- Workspace invites
+create policy "Owners can read workspace invites" on public.workspace_invites for select to authenticated using (public.is_workspace_owner(workspace_id));
+create policy "Authenticated users can read active invite codes" on public.workspace_invites for select to authenticated using (revoked = false);
+create policy "Owners can create workspace invites" on public.workspace_invites for insert to authenticated with check (public.is_workspace_owner(workspace_id));
+create policy "Owners can update workspace invites" on public.workspace_invites for update to authenticated using (public.is_workspace_owner(workspace_id)) with check (public.is_workspace_owner(workspace_id));
+create policy "Owners can delete workspace invites" on public.workspace_invites for delete to authenticated using (public.is_workspace_owner(workspace_id));
 
 -- Prospects
 create policy "Members can read prospects" on public.prospects for select to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = prospects.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(prospects.workspace_id)
 );
 create policy "Members can create prospects" on public.prospects for insert to authenticated with check (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = prospects.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(prospects.workspace_id)
 );
 create policy "Members can update prospects" on public.prospects for update to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = prospects.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(prospects.workspace_id)
 ) with check (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = prospects.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(prospects.workspace_id)
 );
 create policy "Owners can delete prospects" on public.prospects for delete to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = prospects.workspace_id and wm.user_id = auth.uid() and wm.role = 'owner')
+  public.is_workspace_owner(prospects.workspace_id)
 );
 
 -- Activities
 create policy "Members can read activities" on public.activities for select to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = activities.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(activities.workspace_id)
 );
 create policy "Members can create activities" on public.activities for insert to authenticated with check (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = activities.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(activities.workspace_id)
 );
 create policy "Members can update activities" on public.activities for update to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = activities.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(activities.workspace_id)
 ) with check (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = activities.workspace_id and wm.user_id = auth.uid())
+  public.is_workspace_member(activities.workspace_id)
 );
 create policy "Owners can delete activities" on public.activities for delete to authenticated using (
-  exists (select 1 from public.workspace_members wm where wm.workspace_id = activities.workspace_id and wm.user_id = auth.uid() and wm.role = 'owner')
+  public.is_workspace_owner(activities.workspace_id)
 );
