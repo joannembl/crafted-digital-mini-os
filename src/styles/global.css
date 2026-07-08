@@ -458,3 +458,19 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     font-size: clamp(2rem, 12vw, 2.6rem);
   }
 }
+
+.copy-box {
+  white-space: pre-wrap;
+  background: #fbfaf7;
+  border: 1px solid #e7e1d4;
+  border-radius: 18px;
+  padding: 16px;
+  color: #1f211c;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .builder-grid { grid-template-columns: 1fr; }
+  .builder-list { position: static; }
+}

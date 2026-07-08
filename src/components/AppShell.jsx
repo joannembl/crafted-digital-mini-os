@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { BriefcaseBusiness, ChevronLeft, ChevronRight, Hammer, LayoutDashboard, LogOut, Menu, Settings, Users, X } from 'lucide-react'
+import { BriefcaseBusiness, ChevronLeft, ChevronRight, FileText, Hammer, LayoutDashboard, LogOut, Menu, Settings, Users, X } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthContext'
 import { useWorkspace } from '../features/workspace/WorkspaceContext'
 
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/prospects', label: 'Prospects', icon: Users },
   { to: '/demo-builder', label: 'Demo Builder', icon: Hammer },
   { to: '/clients', label: 'Clients', icon: BriefcaseBusiness },
+  { to: '/proposals', label: 'Proposals', icon: FileText },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

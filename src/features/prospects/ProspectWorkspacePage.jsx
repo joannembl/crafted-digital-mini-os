@@ -1,12 +1,12 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BriefcaseBusiness, ExternalLink, Save } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Save, Send } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { slugify, useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 export function ProspectWorkspacePage() {
   const { slug } = useParams()
-  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent, convertToClient, slugForProspect } = useProspects()
+  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent, convertToClient, generateProposal, markProposalSent, slugForProspect } = useProspects()
   const prospect = prospects.find((item) => item.id === slug || item.slug === slug || slugify(item.business_name) === slug)
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
@@ -125,6 +125,25 @@ export function ProspectWorkspacePage() {
             <label>Live URL<input value={prospect.live_url || ''} onChange={(e) => patch({ live_url: e.target.value })} placeholder="https://clientsite.com" /></label>
             <label>Client notes<textarea value={clientNotesDraft} onChange={(e) => setClientNotesDraft(e.target.value)} onBlur={saveClientNotes} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
             <button className="secondary-button full-width" type="button" onClick={saveClientNotes}>Save Client Notes</button>
+          </div>
+        </section>
+
+
+        <section className="panel">
+          <h2>Proposal</h2>
+          <div className="form-stack">
+            <Link className="primary-button full-width" to="/proposals"><FileText size={16} /> Open Proposal Center</Link>
+            <label>Proposal status
+              <select value={prospect.proposal_status || 'not_started'} onChange={(e) => patch({ proposal_status: e.target.value })}>
+                <option value="not_started">Not started</option>
+                <option value="drafted">Drafted</option>
+                <option value="sent">Sent</option>
+                <option value="accepted">Accepted</option>
+                <option value="declined">Declined</option>
+              </select>
+            </label>
+            <button className="secondary-button full-width" type="button" onClick={() => generateProposal(prospect.id)}><FileText size={16} /> Generate Proposal</button>
+            <button className="secondary-button full-width" type="button" onClick={() => markProposalSent(prospect.id)}><Send size={16} /> Mark Sent + Follow Up</button>
           </div>
         </section>
 

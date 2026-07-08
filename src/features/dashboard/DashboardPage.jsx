@@ -9,7 +9,7 @@ function isDue(date) {
 }
 
 export function DashboardPage() {
-  const { prospects, activities } = useProspects()
+  const { prospects, activities, slugForProspect } = useProspects()
 
   const followUpsDue = useMemo(() => prospects.filter((prospect) => isDue(prospect.next_follow_up) && !['won', 'lost'].includes(prospect.status)), [prospects])
   const demosReady = prospects.filter((prospect) => prospect.demo_status === 'ready')
@@ -53,7 +53,7 @@ export function DashboardPage() {
           <h2>Follow-ups due</h2>
           <div className="mini-list">
             {followUpsDue.length === 0 ? <p>No follow-ups due today.</p> : followUpsDue.map((prospect) => (
-              <Link to={`/prospects/${prospect.id}`} key={prospect.id}><strong>{prospect.business_name}</strong><span>{prospect.next_follow_up}</span></Link>
+              <Link to={`/prospects/${slugForProspect(prospect)}`} key={prospect.id}><strong>{prospect.business_name}</strong><span>{prospect.next_follow_up}</span></Link>
             ))}
           </div>
         </section>
@@ -63,7 +63,7 @@ export function DashboardPage() {
           <div className="mini-list">
             {recentActivities.length === 0 ? <p>No notes yet.</p> : recentActivities.map((activity) => {
               const prospect = prospects.find((item) => item.id === activity.prospect_id)
-              return <Link to={`/prospects/${activity.prospect_id}`} key={activity.id}><strong>{activity.type} · {prospect?.business_name || 'Prospect'}</strong><span>{activity.note}</span></Link>
+              return <Link to={`/prospects/${prospect ? slugForProspect(prospect) : activity.prospect_id}`} key={activity.id}><strong>{activity.type} · {prospect?.business_name || 'Prospect'}</strong><span>{activity.note}</span></Link>
             })}
           </div>
         </section>

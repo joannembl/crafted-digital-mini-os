@@ -5,7 +5,7 @@ import { useProspects } from '../prospects/ProspectsContext'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
 
 export function DemoBuilderPage() {
-  const { prospects, updateProspect, generateDemoPlan, markDemoReady, markDemoSent } = useProspects()
+  const { prospects, updateProspect, generateDemoPlan, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
   const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
   const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
@@ -73,7 +73,7 @@ export function DemoBuilderPage() {
                 <h2>{selected.business_name}</h2>
                 <p>{selected.category || 'No category'} · Demo status: {labelFor(demoStatuses, selected.demo_status)}</p>
               </div>
-              <Link className="secondary-button" to={`/prospects/${selected.id}`}>Open workspace</Link>
+              <Link className="secondary-button" to={`/prospects/${slugForProspect(selected)}`}>Open workspace</Link>
             </div>
 
             <div className="action-row">

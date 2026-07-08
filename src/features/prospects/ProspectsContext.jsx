@@ -4,7 +4,7 @@ import { useWorkspace } from '../workspace/WorkspaceContext'
 
 const ProspectsContext = createContext(null)
 
-const STORAGE_KEY = 'crafted-digital-mini-os-phase-4'
+const STORAGE_KEY = 'crafted-digital-mini-os-phase-5'
 
 export function slugify(value = '') {
   return value
@@ -47,6 +47,9 @@ const seedProspects = [
     setup_fee: 99,
     add_ons: '',
     client_notes: '',
+    proposal_status: 'not_started',
+    proposal_notes: '',
+    proposal_sent_at: null,
     converted_at: null,
     next_follow_up: new Date().toISOString().slice(0, 10),
     notes: 'Demo built. Send a short personal follow-up.',
@@ -164,6 +167,9 @@ export function ProspectsProvider({ children }) {
       setup_fee: values.setup_fee === '' || values.setup_fee == null ? null : Number(values.setup_fee),
       add_ons: values.add_ons || '',
       client_notes: values.client_notes || '',
+      proposal_status: values.proposal_status || 'not_started',
+      proposal_notes: values.proposal_notes || '',
+      proposal_sent_at: values.proposal_sent_at || null,
       converted_at: values.converted_at || null,
       next_follow_up: values.next_follow_up || null,
       notes: values.notes || '',
@@ -252,6 +258,60 @@ export function ProspectsProvider({ children }) {
     return result
   }
 
+
+  function generateOutreachMessage(prospect) {
+    const ownerLine = prospect.owner_name ? ` ${prospect.owner_name}` : ''
+    const demoLine = prospect.preview_url ? `\n\nHere is the demo:\n${prospect.preview_url}` : ''
+    return `Hey${ownerLine}! I hope you are doing well. I am starting a local web design business and helping small businesses build modern, affordable websites.\n\nI put together a demo website for ${prospect.business_name} because I thought it would be easier to show you what your business could look like online.${demoLine}\n\nIf you like the direction, I would love to chat whenever you have time. We can customize the colors, photos, services, contact forms, booking, or anything else you would like. No pressure at all — I just thought you might enjoy seeing it.\n\nLet me know what you think!`
+  }
+
+  function buildProposalNotes(prospect) {
+    const packageType = prospect.package_type || 'Website, Handled'
+    const monthly = prospect.monthly_price ?? 99
+    const setup = prospect.setup_fee ?? 99
+    const addOns = prospect.add_ons?.trim() ? prospect.add_ons : 'None for now'
+    return [
+      `${prospect.business_name} Website Proposal`,
+      ``,
+      `Recommended package: ${packageType}`,
+      `Setup fee: $${setup}`,
+      `Monthly service: $${monthly}/month`,
+      `Add-ons: ${addOns}`,
+      ``,
+      `Included:` ,
+      `- Clean, mobile-ready website for ${prospect.business_name}`,
+      `- Hosting and basic maintenance`,
+      `- Small edits and updates`,
+      `- Contact-focused layout built to turn visitors into calls or messages`,
+      `- Monthly performance check-in`,
+      ``,
+      `Next step: confirm the package, collect final business details/photos, then move the demo toward launch.`
+    ].join('\n')
+  }
+
+  async function generateProposal(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    const result = await updateProspect(prospectId, {
+      proposal_status: 'drafted',
+      proposal_notes: buildProposalNotes(prospect),
+    })
+    if (!result.error) await addActivity(prospectId, { type: 'Proposal', note: 'Generated proposal draft.' })
+    return result
+  }
+
+  async function markProposalSent(prospectId) {
+    const result = await updateProspect(prospectId, {
+      proposal_status: 'sent',
+      proposal_sent_at: new Date().toISOString(),
+      status: 'proposal',
+      next_follow_up: addDays(3),
+    })
+    if (!result.error) await addActivity(prospectId, { type: 'Proposal', note: 'Marked proposal as sent. Follow-up scheduled in 3 days.' })
+    return result
+  }
+
   async function convertToClient(prospectId, values = {}) {
     const result = await updateProspect(prospectId, {
       status: 'won',
@@ -261,6 +321,7 @@ export function ProspectsProvider({ children }) {
       setup_fee: values.setup_fee === '' || values.setup_fee == null ? 99 : Number(values.setup_fee),
       add_ons: values.add_ons || '',
       client_notes: values.client_notes || '',
+      proposal_status: values.proposal_status || 'accepted',
       converted_at: new Date().toISOString(),
     })
     if (!result.error) await addActivity(prospectId, { type: 'Client', note: 'Converted prospect to client.' })
@@ -279,6 +340,9 @@ export function ProspectsProvider({ children }) {
     markDemoReady,
     markDemoSent,
     convertToClient,
+    generateOutreachMessage,
+    generateProposal,
+    markProposalSent,
     refresh: loadProspects,
     slugForProspect: prospectSlug,
   }), [prospects, activities, loading, error, loadProspects])

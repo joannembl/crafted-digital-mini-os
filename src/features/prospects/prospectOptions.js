@@ -3,6 +3,7 @@ export const prospectStatuses = [
   { value: 'demo_ready', label: 'Demo Ready' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'follow_up', label: 'Follow Up' },
+  { value: 'proposal', label: 'Proposal' },
   { value: 'won', label: 'Won' },
   { value: 'lost', label: 'Lost' },
 ]

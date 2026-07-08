@@ -1,4 +1,4 @@
--- Crafted Digital Mini OS — Phase 4 Supabase Schema
+-- Crafted Digital Mini OS — Phase 5 Supabase Schema
 -- Safe to run multiple times in Supabase SQL Editor.
 
 create extension if not exists "pgcrypto";
@@ -55,6 +55,9 @@ create table if not exists public.prospects (
   setup_fee numeric(10,2),
   add_ons text,
   client_notes text,
+  proposal_status text not null default 'not_started',
+  proposal_notes text,
+  proposal_sent_at timestamptz,
   converted_at timestamptz,
   next_follow_up date,
   notes text,
@@ -82,6 +85,9 @@ alter table public.prospects add column if not exists monthly_price numeric(10,2
 alter table public.prospects add column if not exists setup_fee numeric(10,2);
 alter table public.prospects add column if not exists add_ons text;
 alter table public.prospects add column if not exists client_notes text;
+alter table public.prospects add column if not exists proposal_status text not null default 'not_started';
+alter table public.prospects add column if not exists proposal_notes text;
+alter table public.prospects add column if not exists proposal_sent_at timestamptz;
 alter table public.prospects add column if not exists converted_at timestamptz;
 
 alter table public.profiles enable row level security;
