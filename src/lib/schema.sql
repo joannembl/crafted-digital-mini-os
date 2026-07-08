@@ -54,6 +54,8 @@ create table if not exists public.prospects (
   instagram text,
   status text not null default 'research',
   demo_status text not null default 'not_started',
+  deployment_status text not null default 'idle',
+  deployment_checked_at timestamptz,
   preview_url text,
   live_url text,
   demo_brief text,
@@ -86,6 +88,8 @@ create table if not exists public.activities (
 -- Safe Phase 3/4 upgrade columns for existing projects.
 alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
+alter table public.prospects add column if not exists deployment_status text not null default 'idle';
+alter table public.prospects add column if not exists deployment_checked_at timestamptz;
 alter table public.prospects add column if not exists demo_brief text;
 alter table public.prospects add column if not exists demo_copy text;
 alter table public.prospects add column if not exists demo_notes text;

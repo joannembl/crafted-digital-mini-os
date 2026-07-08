@@ -673,3 +673,65 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     grid-template-columns: 1fr;
   }
 }
+
+.publishing-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 18px;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.publishing-callout p {
+  margin: 0.25rem 0 0;
+  color: var(--muted-text);
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--muted-text);
+}
+
+.status-chip.deployment-publishing {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+}
+
+.status-chip.deployment-live {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.1);
+  color: #166534;
+}
+
+.status-chip.deployment-failed {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+}
+
+@media (max-width: 720px) {
+  .publishing-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

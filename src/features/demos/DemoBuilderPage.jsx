@@ -1,10 +1,19 @@
 import { Link } from 'react-router-dom'
-import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useProspects } from '../prospects/ProspectsContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
+
+function deploymentLabel(status) {
+  switch (status) {
+    case 'publishing': return 'Publishing to GitHub Pages'
+    case 'live': return 'Live'
+    case 'failed': return 'Failed'
+    default: return 'Not deployed'
+  }
+}
 
 export function DemoBuilderPage() {
   const { prospects, updateProspect, addActivity, generateDemoPlan, markDemoReady, markDemoSent, slugForProspect } = useProspects()
@@ -14,6 +23,7 @@ export function DemoBuilderPage() {
   const [saved, setSaved] = useState('')
   const [isTutorialCollapsed, setIsTutorialCollapsed] = useState(false)
   const [deploying, setDeploying] = useState(false)
+  const [checkingLive, setCheckingLive] = useState(false)
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -37,6 +47,48 @@ export function DemoBuilderPage() {
     }
   }
 
+  async function checkPreviewIsLive(prospect = selected, options = {}) {
+    if (!prospect?.preview_url) {
+      toast.error('No preview URL to check')
+      return false
+    }
+
+    setCheckingLive(true)
+    try {
+      const separator = prospect.preview_url.includes('?') ? '&' : '?'
+      const response = await fetch(`${prospect.preview_url}${separator}check=${Date.now()}`, {
+        method: 'HEAD',
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        await updateProspect(prospect.id, {
+          deployment_status: 'live',
+          demo_status: 'ready',
+          status: 'demo_ready',
+          deployment_checked_at: new Date().toISOString(),
+        })
+        if (!options.silent) toast.success('Demo is live. Preview is ready.')
+        return true
+      }
+
+      await updateProspect(prospect.id, {
+        deployment_status: 'publishing',
+        deployment_checked_at: new Date().toISOString(),
+      })
+      if (!options.silent) toast('Still publishing. Try again in a minute.')
+      return false
+    } catch (error) {
+      await updateProspect(prospect.id, {
+        deployment_status: 'publishing',
+        deployment_checked_at: new Date().toISOString(),
+      })
+      if (!options.silent) toast('Still publishing. GitHub Pages may need a little more time.')
+      return false
+    } finally {
+      setCheckingLive(false)
+    }
+  }
 
   async function deployDemoSite() {
     if (!selected) return
@@ -44,18 +96,24 @@ export function DemoBuilderPage() {
     toast.loading('Deploying demo site...', { id: 'deploy-demo' })
 
     try {
+      await updateProspect(selected.id, {
+        deployment_status: 'publishing',
+        demo_status: 'building',
+      })
+
       if (!isSupabaseConfigured) {
         const slug = slugForProspect(selected)
         const previewUrl = `https://joannembl.github.io/crafted-digital-demos/${slug}/`
         const result = await updateProspect(selected.id, {
           preview_url: previewUrl,
-          demo_status: 'ready',
+          demo_status: 'building',
+          deployment_status: 'publishing',
           status: 'demo_ready',
         })
         if (!result.error) {
           await addActivity(selected.id, { type: 'Demo', note: `Demo deployment simulated: ${previewUrl}` })
-          toast.success('Demo preview URL saved', { id: 'deploy-demo' })
-          setSaved('Demo preview saved')
+          toast.success('Demo sent to publishing queue', { id: 'deploy-demo' })
+          setSaved('Demo publishing')
         } else {
           toast.error(result.error.message || 'Unable to save preview URL', { id: 'deploy-demo' })
         }
@@ -73,34 +131,53 @@ export function DemoBuilderPage() {
 
       const result = await updateProspect(selected.id, {
         preview_url: data.previewUrl,
-        demo_status: 'ready',
+        demo_status: 'building',
+        deployment_status: 'publishing',
         status: 'demo_ready',
+        deployment_checked_at: null,
       })
 
       if (result.error) throw result.error
 
-      await addActivity(selected.id, { type: 'Demo', note: `Demo site deployed to GitHub Pages: ${data.previewUrl}` })
-      toast.success('Demo deployed to GitHub Pages', { id: 'deploy-demo' })
-      setSaved('Demo deployed')
+      await addActivity(selected.id, { type: 'Demo', note: `Demo site pushed to GitHub Pages and is publishing: ${data.previewUrl}` })
+      toast.success('Demo is publishing. GitHub Pages may take a few minutes.', { id: 'deploy-demo' })
+      setSaved('Publishing')
       window.setTimeout(() => setSaved(''), 1400)
     } catch (error) {
+      await updateProspect(selected.id, { deployment_status: 'failed' })
       toast.error(error.message || 'Unable to deploy demo site', { id: 'deploy-demo' })
     } finally {
       setDeploying(false)
     }
   }
 
+  useEffect(() => {
+    if (!selected?.preview_url || selected.deployment_status !== 'publishing') return undefined
+
+    const interval = window.setInterval(() => {
+      checkPreviewIsLive(selected, { silent: true })
+    }, 20000)
+
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval)
+    }, 240000)
+
+    return () => {
+      window.clearInterval(interval)
+      window.clearTimeout(timeout)
+    }
+  }, [selected?.id, selected?.preview_url, selected?.deployment_status])
+
   return (
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Phase 3</p>
+          <p className="eyebrow">Phase 8.1</p>
           <h1>Demo Builder</h1>
-          <p>Pick a prospect, shape the demo plan, save the preview URL, then mark it ready or sent.</p>
+          <p>Pick a prospect, shape the demo plan, deploy the demo, then wait for GitHub Pages to finish publishing.</p>
         </div>
         {saved && <span className="save-pill">{saved}</span>}
       </header>
-
 
       <section className="panel collapsible-panel tutorial-panel">
         <button
@@ -118,48 +195,12 @@ export function DemoBuilderPage() {
 
         {!isTutorialCollapsed && (
           <div className="tutorial-steps">
-            <article className="tutorial-step">
-              <span>1</span>
-              <div>
-                <h3>Pick a prospect</h3>
-                <p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p>
-              </div>
-            </article>
-            <article className="tutorial-step">
-              <span>2</span>
-              <div>
-                <h3>Generate the plan</h3>
-                <p>Click <strong>Generate Demo Plan</strong> to create a starting brief, section outline, and website copy based on the prospect details.</p>
-              </div>
-            </article>
-            <article className="tutorial-step">
-              <span>3</span>
-              <div>
-                <h3>Refine the copy</h3>
-                <p>Edit the demo brief, site structure, and build notes so the demo feels personal to that business.</p>
-              </div>
-            </article>
-            <article className="tutorial-step">
-              <span>4</span>
-              <div>
-                <h3>Add the preview link</h3>
-                <p>Paste the Netlify, Cloudflare, or GitHub Pages preview URL into <strong>Preview URL</strong>.</p>
-              </div>
-            </article>
-            <article className="tutorial-step">
-              <span>5</span>
-              <div>
-                <h3>Mark the demo ready</h3>
-                <p>Use <strong>Mark Ready</strong> once the preview is good enough to show the owner.</p>
-              </div>
-            </article>
-            <article className="tutorial-step">
-              <span>6</span>
-              <div>
-                <h3>Send and follow up</h3>
-                <p>After you text, DM, or email the demo, click <strong>Mark Sent + Follow Up</strong>. The OS will schedule the next follow-up automatically.</p>
-              </div>
-            </article>
+            <article className="tutorial-step"><span>1</span><div><h3>Pick a prospect</h3><p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p></div></article>
+            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate Demo Plan</strong> to create a starting brief, section outline, and website copy based on the prospect details.</p></div></article>
+            <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Edit the demo brief, site structure, and build notes so the demo feels personal to that business.</p></div></article>
+            <article className="tutorial-step"><span>4</span><div><h3>Deploy the demo</h3><p>Click <strong>Deploy to GitHub Pages</strong>. The OS will push the demo files and mark the site as publishing.</p></div></article>
+            <article className="tutorial-step"><span>5</span><div><h3>Wait for publishing</h3><p>GitHub Pages can take 1–3 minutes. Use <strong>Check if live</strong> until the preview is ready.</p></div></article>
+            <article className="tutorial-step"><span>6</span><div><h3>Send and follow up</h3><p>After you text, DM, or email the demo, click <strong>Mark Sent + Follow Up</strong>. The OS will schedule the next follow-up automatically.</p></div></article>
           </div>
         )}
       </section>
@@ -200,12 +241,28 @@ export function DemoBuilderPage() {
               <Link className="secondary-button" to={`/prospects/${slugForProspect(selected)}`}>Open workspace</Link>
             </div>
 
+            {selected.deployment_status === 'publishing' ? (
+              <div className="publishing-callout">
+                <div>
+                  <strong>Publishing to GitHub Pages…</strong>
+                  <p>Your demo files were pushed successfully. GitHub Pages may take 1–3 minutes before the preview URL stops showing 404.</p>
+                </div>
+                <button className="secondary-button" type="button" onClick={() => checkPreviewIsLive()} disabled={checkingLive}>
+                  <RefreshCw size={16} /> {checkingLive ? 'Checking...' : 'Check if live'}
+                </button>
+              </div>
+            ) : null}
+
+            <div className="status-row">
+              <span className={`status-chip deployment-${selected.deployment_status || 'idle'}`}>{deploymentLabel(selected.deployment_status)}</span>
+            </div>
+
             <div className="action-row">
               <button className="primary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
                 <Sparkles size={16} /> Generate Demo Plan
               </button>
-              <button className="secondary-button" type="button" onClick={deployDemoSite} disabled={deploying}>
-                <Rocket size={16} /> {deploying ? 'Deploying...' : 'Deploy to GitHub Pages'}
+              <button className="secondary-button" type="button" onClick={deployDemoSite} disabled={deploying || selected.deployment_status === 'publishing'}>
+                <Rocket size={16} /> {deploying ? 'Deploying...' : selected.deployment_status === 'publishing' ? 'Publishing...' : 'Deploy to GitHub Pages'}
               </button>
               <button className="secondary-button" type="button" onClick={() => markDemoReady(selected.id, selected.preview_url).then((result) => { if (!result.error) { setSaved('Demo marked ready'); toast.success('Demo marked ready') } else toast.error(result.error.message || 'Unable to mark demo ready') })}>
                 <Hammer size={16} /> Mark Ready
@@ -218,7 +275,7 @@ export function DemoBuilderPage() {
             <div className="form-grid compact">
               <label className="span-2">Demo brief<textarea value={selected.demo_brief || ''} onChange={(e) => patch({ demo_brief: e.target.value })} placeholder="What should this demo focus on?" /></label>
               <label className="span-2 tall-textarea">Generated copy / site structure<textarea value={selected.demo_copy || ''} onChange={(e) => patch({ demo_copy: e.target.value })} placeholder="Hero copy, sections, CTA, notes..." /></label>
-              <label>Preview URL<input value={selected.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
+              <label>Preview URL<input value={selected.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value, deployment_status: e.target.value ? 'live' : 'idle' })} placeholder="https://demo.netlify.app" /></label>
               <label>Live URL<input value={selected.live_url || ''} onChange={(e) => patch({ live_url: e.target.value })} placeholder="https://clientdomain.com" /></label>
               <label>Demo status<select value={selected.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
               <label>Next follow-up<input type="date" value={selected.next_follow_up || ''} onChange={(e) => patch({ next_follow_up: e.target.value || null })} /></label>
@@ -226,7 +283,8 @@ export function DemoBuilderPage() {
             </div>
 
             <div className="link-row">
-              {selected.preview_url ? <a className="secondary-button" href={selected.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a> : null}
+              {selected.preview_url && selected.deployment_status !== 'publishing' ? <a className="secondary-button" href={selected.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a> : null}
+              {selected.preview_url && selected.deployment_status === 'publishing' ? <button className="secondary-button" type="button" disabled><ExternalLink size={16} /> Preview available after publishing</button> : null}
               {selected.live_url ? <a className="secondary-button" href={selected.live_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open live site</a> : null}
             </div>
           </section>

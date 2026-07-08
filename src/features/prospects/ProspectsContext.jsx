@@ -156,6 +156,8 @@ export function ProspectsProvider({ children }) {
       instagram: values.instagram || '',
       status: values.status || 'research',
       demo_status: values.demo_status || 'not_started',
+      deployment_status: values.deployment_status || 'idle',
+      deployment_checked_at: values.deployment_checked_at || null,
       preview_url: values.preview_url || '',
       live_url: values.live_url || '',
       demo_brief: values.demo_brief || '',
@@ -228,6 +230,7 @@ export function ProspectsProvider({ children }) {
 
     const values = {
       demo_status: 'building',
+      deployment_status: prospect.deployment_status || 'idle',
       status: prospect.status === 'research' ? 'demo_ready' : prospect.status,
       demo_brief: prospect.demo_brief || `${prospect.business_name} demo website for a ${prospect.category || 'local'} business.`,
       demo_copy: buildDemoCopy(prospect),
@@ -240,7 +243,7 @@ export function ProspectsProvider({ children }) {
   }
 
   async function markDemoReady(prospectId, previewUrl = '') {
-    const values = { demo_status: 'ready', status: 'demo_ready' }
+    const values = { demo_status: 'ready', deployment_status: previewUrl ? 'live' : 'idle', status: 'demo_ready' }
     if (previewUrl) values.preview_url = previewUrl
     const result = await updateProspect(prospectId, values)
     if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Marked demo as ready.' })
@@ -250,6 +253,7 @@ export function ProspectsProvider({ children }) {
   async function markDemoSent(prospectId) {
     const result = await updateProspect(prospectId, {
       demo_status: 'sent',
+      deployment_status: 'live',
       status: 'contacted',
       demo_last_sent: new Date().toISOString(),
       next_follow_up: addDays(2),
@@ -316,6 +320,7 @@ export function ProspectsProvider({ children }) {
     const result = await updateProspect(prospectId, {
       status: 'won',
       demo_status: 'live',
+      deployment_status: 'live',
       package_type: values.package_type || 'Website, Handled',
       monthly_price: values.monthly_price === '' || values.monthly_price == null ? 99 : Number(values.monthly_price),
       setup_fee: values.setup_fee === '' || values.setup_fee == null ? 99 : Number(values.setup_fee),
