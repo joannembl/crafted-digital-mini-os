@@ -1,17 +1,19 @@
 import { Link } from 'react-router-dom'
-import { ChevronDown, ExternalLink, Hammer, Send, Sparkles } from 'lucide-react'
+import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useProspects } from '../prospects/ProspectsContext'
+import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
 
 export function DemoBuilderPage() {
-  const { prospects, updateProspect, generateDemoPlan, markDemoReady, markDemoSent, slugForProspect } = useProspects()
+  const { prospects, updateProspect, addActivity, generateDemoPlan, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
   const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
   const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
   const [saved, setSaved] = useState('')
   const [isTutorialCollapsed, setIsTutorialCollapsed] = useState(false)
+  const [deploying, setDeploying] = useState(false)
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -32,6 +34,59 @@ export function DemoBuilderPage() {
       window.setTimeout(() => setSaved(''), 1400)
     } else {
       toast.error(result.error.message || 'Action failed')
+    }
+  }
+
+
+  async function deployDemoSite() {
+    if (!selected) return
+    setDeploying(true)
+    toast.loading('Deploying demo site...', { id: 'deploy-demo' })
+
+    try {
+      if (!isSupabaseConfigured) {
+        const slug = slugForProspect(selected)
+        const previewUrl = `https://joannembl.github.io/crafted-digital-demos/${slug}/`
+        const result = await updateProspect(selected.id, {
+          preview_url: previewUrl,
+          demo_status: 'ready',
+          status: 'demo_ready',
+        })
+        if (!result.error) {
+          await addActivity(selected.id, { type: 'Demo', note: `Demo deployment simulated: ${previewUrl}` })
+          toast.success('Demo preview URL saved', { id: 'deploy-demo' })
+          setSaved('Demo preview saved')
+        } else {
+          toast.error(result.error.message || 'Unable to save preview URL', { id: 'deploy-demo' })
+        }
+        setDeploying(false)
+        return
+      }
+
+      const { data, error } = await supabase.functions.invoke('deploy-demo-site', {
+        body: { prospect: selected },
+      })
+
+      if (error || data?.error) {
+        throw new Error(error?.message || data?.error || 'Unable to deploy demo site')
+      }
+
+      const result = await updateProspect(selected.id, {
+        preview_url: data.previewUrl,
+        demo_status: 'ready',
+        status: 'demo_ready',
+      })
+
+      if (result.error) throw result.error
+
+      await addActivity(selected.id, { type: 'Demo', note: `Demo site deployed to GitHub Pages: ${data.previewUrl}` })
+      toast.success('Demo deployed to GitHub Pages', { id: 'deploy-demo' })
+      setSaved('Demo deployed')
+      window.setTimeout(() => setSaved(''), 1400)
+    } catch (error) {
+      toast.error(error.message || 'Unable to deploy demo site', { id: 'deploy-demo' })
+    } finally {
+      setDeploying(false)
     }
   }
 
@@ -148,6 +203,9 @@ export function DemoBuilderPage() {
             <div className="action-row">
               <button className="primary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
                 <Sparkles size={16} /> Generate Demo Plan
+              </button>
+              <button className="secondary-button" type="button" onClick={deployDemoSite} disabled={deploying}>
+                <Rocket size={16} /> {deploying ? 'Deploying...' : 'Deploy to GitHub Pages'}
               </button>
               <button className="secondary-button" type="button" onClick={() => markDemoReady(selected.id, selected.preview_url).then((result) => { if (!result.error) { setSaved('Demo marked ready'); toast.success('Demo marked ready') } else toast.error(result.error.message || 'Unable to mark demo ready') })}>
                 <Hammer size={16} /> Mark Ready
