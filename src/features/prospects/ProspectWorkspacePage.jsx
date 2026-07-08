@@ -6,7 +6,7 @@ import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 export function ProspectWorkspacePage() {
   const { id } = useParams()
-  const { prospects, activities, updateProspect, addActivity } = useProspects()
+  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent } = useProspects()
   const prospect = prospects.find((item) => item.id === id)
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
@@ -63,11 +63,12 @@ export function ProspectWorkspacePage() {
         <section className="panel">
           <h2>Demo tracker</h2>
           <div className="form-stack">
+            <Link className="primary-button full-width" to="/demo-builder">Open Demo Builder</Link>
             <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Preview URL<input value={prospect.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
             {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
-            <button className="primary-button full-width" type="button" onClick={() => patch({ status: 'demo_ready', demo_status: 'ready' })}>Mark Demo Ready</button>
-            <button className="secondary-button full-width" type="button" onClick={() => patch({ status: 'contacted', demo_status: 'sent', next_follow_up: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) })}>Mark Sent + Follow Up</button>
+            <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url)}>Mark Demo Ready</button>
+            <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id)}>Mark Sent + Follow Up</button>
           </div>
         </section>
       </div>

@@ -4,7 +4,7 @@ import { useWorkspace } from '../workspace/WorkspaceContext'
 
 const ProspectsContext = createContext(null)
 
-const STORAGE_KEY = 'crafted-digital-mini-os-phase-2'
+const STORAGE_KEY = 'crafted-digital-mini-os-phase-3'
 
 const seedProspects = [
   {
@@ -20,6 +20,11 @@ const seedProspects = [
     status: 'demo_ready',
     demo_status: 'ready',
     preview_url: 'https://cafemolliephx.netlify.app/',
+    live_url: '',
+    demo_brief: 'Local cafe demo focused on drinks, cozy photos, menu highlights, and easy contact.',
+    demo_copy: 'Hero: A cozy neighborhood cafe with handcrafted drinks and friendly service. Sections: Featured drinks, about the cafe, menu preview, visit us, contact.',
+    demo_notes: 'Use warm photos, simple menu cards, and clear call-to-action buttons.',
+    demo_last_sent: null,
     next_follow_up: new Date().toISOString().slice(0, 10),
     notes: 'Demo built. Send a short personal follow-up.',
     created_at: new Date().toISOString(),
@@ -49,6 +54,21 @@ function readLocal() {
 
 function writeLocal(nextState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState))
+}
+
+function addDays(days) {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+}
+
+function buildDemoCopy(prospect) {
+  const category = prospect.category || 'local business'
+  const name = prospect.business_name
+  return [
+    `Hero: ${name} helps local customers with reliable ${category.toLowerCase()} services and a simple way to get in touch.`,
+    `Sections: Services, why choose ${name}, customer-friendly process, location/contact, and a clear call-to-action.`,
+    `Primary CTA: Call now or request a quote. Secondary CTA: View services.`,
+    `Tone: local, trustworthy, clean, and easy to understand.`,
+  ].join('\n\n')
 }
 
 export function ProspectsProvider({ children }) {
@@ -110,6 +130,11 @@ export function ProspectsProvider({ children }) {
       status: values.status || 'research',
       demo_status: values.demo_status || 'not_started',
       preview_url: values.preview_url || '',
+      live_url: values.live_url || '',
+      demo_brief: values.demo_brief || '',
+      demo_copy: values.demo_copy || '',
+      demo_notes: values.demo_notes || '',
+      demo_last_sent: values.demo_last_sent || null,
       next_follow_up: values.next_follow_up || null,
       notes: values.notes || '',
     }
@@ -129,7 +154,7 @@ export function ProspectsProvider({ children }) {
     if (!isSupabaseConfigured) {
       const next = prospects.map((prospect) => prospect.id === id ? { ...prospect, ...values } : prospect)
       persistLocal(next)
-      return { error: null }
+      return { data: next.find((prospect) => prospect.id === id), error: null }
     }
 
     const { data, error } = await supabase.from('prospects').update(values).eq('id', id).select().single()
@@ -156,6 +181,42 @@ export function ProspectsProvider({ children }) {
     return { data, error }
   }
 
+  async function generateDemoPlan(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    const values = {
+      demo_status: 'building',
+      status: prospect.status === 'research' ? 'demo_ready' : prospect.status,
+      demo_brief: prospect.demo_brief || `${prospect.business_name} demo website for a ${prospect.category || 'local'} business.`,
+      demo_copy: buildDemoCopy(prospect),
+      demo_notes: prospect.demo_notes || 'Keep the design simple, mobile-first, and focused on turning visitors into calls or messages.',
+    }
+
+    const result = await updateProspect(prospectId, values)
+    if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Generated demo plan and website copy.' })
+    return result
+  }
+
+  async function markDemoReady(prospectId, previewUrl = '') {
+    const values = { demo_status: 'ready', status: 'demo_ready' }
+    if (previewUrl) values.preview_url = previewUrl
+    const result = await updateProspect(prospectId, values)
+    if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Marked demo as ready.' })
+    return result
+  }
+
+  async function markDemoSent(prospectId) {
+    const result = await updateProspect(prospectId, {
+      demo_status: 'sent',
+      status: 'contacted',
+      demo_last_sent: new Date().toISOString(),
+      next_follow_up: addDays(2),
+    })
+    if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Marked demo as sent. Follow-up scheduled in 2 days.' })
+    return result
+  }
+
   const value = useMemo(() => ({
     prospects,
     activities,
@@ -164,6 +225,9 @@ export function ProspectsProvider({ children }) {
     createProspect,
     updateProspect,
     addActivity,
+    generateDemoPlan,
+    markDemoReady,
+    markDemoSent,
     refresh: loadProspects,
   }), [prospects, activities, loading, error, loadProspects])
 

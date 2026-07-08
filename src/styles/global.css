@@ -116,3 +116,74 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   .span-2 { grid-column: span 1; }
   .toolbar { align-items: stretch; flex-direction: column; }
 }
+
+.builder-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.builder-list {
+  position: sticky;
+  top: 1rem;
+}
+
+.queue-item {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 0.85rem;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.queue-item span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.queue-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.builder-title-row,
+.action-row,
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.action-row,
+.link-row {
+  justify-content: flex-start;
+  margin: 1rem 0;
+}
+
+.tall-textarea textarea {
+  min-height: 180px;
+}
+
+.empty-state {
+  align-items: flex-start;
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (max-width: 920px) {
+  .builder-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-list {
+    position: static;
+  }
+}

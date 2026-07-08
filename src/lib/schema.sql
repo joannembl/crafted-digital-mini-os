@@ -44,6 +44,11 @@ create table if not exists public.prospects (
   status text not null default 'research',
   demo_status text not null default 'not_started',
   preview_url text,
+  live_url text,
+  demo_brief text,
+  demo_copy text,
+  demo_notes text,
+  demo_last_sent timestamptz,
   next_follow_up date,
   notes text,
   created_at timestamptz not null default now()
@@ -57,6 +62,14 @@ create table if not exists public.activities (
   note text not null,
   created_at timestamptz not null default now()
 );
+
+
+-- Phase 3 upgrade columns for existing Phase 2 projects. Safe to re-run.
+alter table public.prospects add column if not exists live_url text;
+alter table public.prospects add column if not exists demo_brief text;
+alter table public.prospects add column if not exists demo_copy text;
+alter table public.prospects add column if not exists demo_notes text;
+alter table public.prospects add column if not exists demo_last_sent timestamptz;
 
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
