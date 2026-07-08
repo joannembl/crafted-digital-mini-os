@@ -328,6 +328,26 @@ export function ProspectsProvider({ children }) {
     return result
   }
 
+
+  async function completeFollowUp(prospectId, note = '') {
+    const cleanNote = note?.trim()
+    const result = await updateProspect(prospectId, { next_follow_up: null })
+    if (!result.error) {
+      await addActivity(prospectId, {
+        type: 'Follow-up',
+        note: cleanNote || 'Completed follow-up.',
+      })
+    }
+    return result
+  }
+
+  async function snoozeFollowUp(prospectId, days = 2) {
+    const nextDate = addDays(days)
+    const result = await updateProspect(prospectId, { next_follow_up: nextDate })
+    if (!result.error) await addActivity(prospectId, { type: 'Follow-up', note: `Snoozed follow-up until ${nextDate}.` })
+    return result
+  }
+
   const value = useMemo(() => ({
     prospects,
     activities,
@@ -343,6 +363,8 @@ export function ProspectsProvider({ children }) {
     generateOutreachMessage,
     generateProposal,
     markProposalSent,
+    completeFollowUp,
+    snoozeFollowUp,
     refresh: loadProspects,
     slugForProspect: prospectSlug,
   }), [prospects, activities, loading, error, loadProspects])

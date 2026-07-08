@@ -38,7 +38,7 @@ export function SettingsPage() {
             </div>
           )) : <p>No members loaded yet.</p>}
         </div>
-        <div className="notice">Phase 1 prepares the workspace model. The invite/member add form can come after your Supabase project is connected.</div>
+        <div className="notice">Workspace sharing is active. For now, keep this simple: one owner and one teammate. Full email invites will be added after the shared workflow is stable.</div>
       </section>
     </div>
   )

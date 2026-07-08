@@ -474,3 +474,96 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   .builder-grid { grid-template-columns: 1fr; }
   .builder-list { position: static; }
 }
+
+/* Phase 6: reminder engine + daily command center */
+.header-actions,
+.section-title-row,
+.reminder-actions,
+.reminder-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-title-row {
+  margin-bottom: 16px;
+}
+
+.section-title-row h2 {
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title-row a {
+  color: #8a6b26;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.reminder-list {
+  display: grid;
+  gap: 14px;
+}
+
+.reminder-card {
+  border: 1px solid #e7e1d4;
+  border-radius: 20px;
+  padding: 16px;
+  background: #fbfaf7;
+  display: grid;
+  gap: 14px;
+}
+
+.reminder-card-header a {
+  color: #1f211c;
+  text-decoration: none;
+}
+
+.reminder-card-header a:hover {
+  color: #8a6b26;
+}
+
+.reminder-card-header strong,
+.reminder-card-header span {
+  display: block;
+}
+
+.reminder-card-header div span {
+  color: #6b6f65;
+  margin-top: 4px;
+  font-size: .9rem;
+}
+
+.reminder-card textarea {
+  min-height: 78px;
+}
+
+.reminder-actions {
+  justify-content: flex-start;
+}
+
+.reminder-actions .primary-button,
+.reminder-actions .secondary-button {
+  min-height: 42px;
+}
+
+@media (max-width: 760px) {
+  .header-actions,
+  .section-title-row,
+  .reminder-card-header,
+  .reminder-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions .primary-button,
+  .header-actions .secondary-button,
+  .reminder-actions .primary-button,
+  .reminder-actions .secondary-button {
+    width: 100%;
+  }
+}

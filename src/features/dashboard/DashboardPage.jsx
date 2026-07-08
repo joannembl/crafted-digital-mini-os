@@ -31,7 +31,10 @@ export function DashboardPage() {
           <h1>What needs your attention?</h1>
           <p>Your simplified workflow: add a prospect, build/send a demo, follow up, add notes, and mark won.</p>
         </div>
-        <Link className="primary-button" to="/prospects">Add or view prospects</Link>
+        <div className="header-actions">
+          <Link className="secondary-button" to="/reminders">Open reminders</Link>
+          <Link className="primary-button" to="/prospects">Add or view prospects</Link>
+        </div>
       </header>
 
       <section className="card-grid">
@@ -50,7 +53,7 @@ export function DashboardPage() {
 
       <div className="dashboard-grid">
         <section className="panel">
-          <h2>Follow-ups due</h2>
+          <div className="section-title-row"><h2>Follow-ups due</h2><Link to="/reminders">Work reminders</Link></div>
           <div className="mini-list">
             {followUpsDue.length === 0 ? <p>No follow-ups due today.</p> : followUpsDue.map((prospect) => (
               <Link to={`/prospects/${slugForProspect(prospect)}`} key={prospect.id}><strong>{prospect.business_name}</strong><span>{prospect.next_follow_up}</span></Link>
