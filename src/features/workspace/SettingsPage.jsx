@@ -18,6 +18,7 @@ export function SettingsPage() {
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviteError, setInviteError] = useState('')
   const [savingInvite, setSavingInvite] = useState(false)
+  const [auditLogs, setAuditLogs] = useState([])
   const isOwner = workspace?.role === 'owner'
 
   const shareText = useMemo(() => {
@@ -42,6 +43,27 @@ export function SettingsPage() {
 
     loadInvite()
   }, [workspace?.id, isOwner])
+
+
+  useEffect(() => {
+    async function loadAuditLogs() {
+      if (!isSupabaseConfigured || !workspace?.id) {
+        setAuditLogs([])
+        return
+      }
+
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('id, action, entity_type, entity_id, metadata, created_at')
+        .eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false })
+        .limit(8)
+
+      setAuditLogs(data ?? [])
+    }
+
+    loadAuditLogs()
+  }, [workspace?.id, inviteMessage])
 
   async function generateInvite() {
     setInviteMessage('')
@@ -206,6 +228,44 @@ export function SettingsPage() {
 
         {inviteMessage && <div className="success">{inviteMessage}</div>}
         {inviteError && <div className="error">{inviteError}</div>}
+      </section>
+
+
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h2>Production readiness</h2>
+            <p className="muted">Free security controls to keep enabled before inviting teammates or using this daily.</p>
+          </div>
+        </div>
+        <div className="settings-list readiness-list">
+          <div><span>Minimum password length</span><strong>Recommended: 12+ characters</strong></div>
+          <div><span>Secure email change</span><strong>Enabled in Supabase</strong></div>
+          <div><span>Secure password change</span><strong>Turn on in Auth → Sign In / Providers → Email</strong></div>
+          <div><span>Current password required</span><strong>Turn on in the Email provider</strong></div>
+          <div><span>Leaked password protection</span><strong>Pro-only Supabase feature</strong></div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h2>Recent audit activity</h2>
+            <p className="muted">Important workspace actions are recorded here for accountability.</p>
+          </div>
+        </div>
+        <div className="audit-list">
+          {auditLogs.length ? auditLogs.map((log) => (
+            <div className="audit-row" key={log.id}>
+              <div>
+                <strong>{log.action}</strong>
+                <span>{log.entity_type}{log.metadata?.business_name ? ` · ${log.metadata.business_name}` : ''}</span>
+              </div>
+              <time>{new Date(log.created_at).toLocaleString()}</time>
+            </div>
+          )) : <p className="muted">No audit activity yet.</p>}
+        </div>
       </section>
 
       <section className="panel">

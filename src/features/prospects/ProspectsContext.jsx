@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { useWorkspace } from '../workspace/WorkspaceContext'
+import { logAuditEvent } from '../../lib/audit'
 
 const ProspectsContext = createContext(null)
 
@@ -208,7 +209,16 @@ export function ProspectsProvider({ children }) {
     }
 
     const { data, error } = await supabase.from('prospects').insert(row).select().single()
-    if (!error) setProspects((current) => [{ ...data, slug: prospectSlug(data) }, ...current])
+    if (!error) {
+      setProspects((current) => [{ ...data, slug: prospectSlug(data) }, ...current])
+      await logAuditEvent({
+        workspaceId,
+        action: 'prospect.created',
+        entityType: 'prospect',
+        entityId: data.id,
+        metadata: { business_name: data.business_name, status: data.status },
+      })
+    }
     return { data, error }
   }
 
@@ -244,7 +254,16 @@ export function ProspectsProvider({ children }) {
     }
 
     const { data, error } = await supabase.from('activities').insert(row).select().single()
-    if (!error) setActivities((current) => [data, ...current])
+    if (!error) {
+      setActivities((current) => [data, ...current])
+      await logAuditEvent({
+        workspaceId,
+        action: 'activity.created',
+        entityType: 'activity',
+        entityId: data.id,
+        metadata: { prospect_id: prospectId, type: data.type },
+      })
+    }
     return { data, error }
   }
 
@@ -526,7 +545,16 @@ export function ProspectsProvider({ children }) {
     }
 
     const { error } = await supabase.from('activities').delete().eq('id', activityId)
-    if (!error) setActivities((current) => current.filter((item) => item.id !== activityId))
+    if (!error) {
+      setActivities((current) => current.filter((item) => item.id !== activityId))
+      await logAuditEvent({
+        workspaceId,
+        action: 'activity.deleted',
+        entityType: 'activity',
+        entityId: activityId,
+        metadata: { prospect_id: activity.prospect_id, type: activity.type },
+      })
+    }
     return { data: activity, error }
   }
 
@@ -543,7 +571,16 @@ export function ProspectsProvider({ children }) {
     }
 
     const { error } = await supabase.from('activities').delete().eq('prospect_id', prospectId)
-    if (!error) setActivities((current) => current.filter((item) => item.prospect_id !== prospectId))
+    if (!error) {
+      setActivities((current) => current.filter((item) => item.prospect_id !== prospectId))
+      await logAuditEvent({
+        workspaceId,
+        action: 'activity.bulk_deleted',
+        entityType: 'prospect',
+        entityId: prospectId,
+        metadata: { business_name: prospect.business_name, deleted_count: deletedActivities.length },
+      })
+    }
     return { data: deletedActivities, error }
   }
 
@@ -579,7 +616,16 @@ export function ProspectsProvider({ children }) {
       await supabase.from('business_research').delete().eq('prospect_id', prospectId)
     }
 
-    if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Cleared demo, AI generation, deployment, and research fields.' })
+    if (!result.error) {
+      await addActivity(prospectId, { type: 'Demo', note: 'Cleared demo, AI generation, deployment, and research fields.' })
+      await logAuditEvent({
+        workspaceId,
+        action: 'demo.cleared',
+        entityType: 'prospect',
+        entityId: prospectId,
+        metadata: { business_name: prospect.business_name },
+      })
+    }
     return result
   }
 
@@ -594,7 +640,16 @@ export function ProspectsProvider({ children }) {
       converted_at: null,
       proposal_status: 'drafted',
     })
-    if (!result.error) await addActivity(prospectId, { type: 'Client', note: 'Cleared client details and moved prospect back to proposal.' })
+    if (!result.error) {
+      await addActivity(prospectId, { type: 'Client', note: 'Cleared client details and moved prospect back to proposal.' })
+      await logAuditEvent({
+        workspaceId,
+        action: 'client_details.cleared',
+        entityType: 'prospect',
+        entityId: prospectId,
+        metadata: {},
+      })
+    }
     return result
   }
 
@@ -608,6 +663,14 @@ export function ProspectsProvider({ children }) {
       persistLocal(nextProspects, nextActivities)
       return { data: prospect, error: null }
     }
+
+    await logAuditEvent({
+      workspaceId,
+      action: 'prospect.delete_requested',
+      entityType: 'prospect',
+      entityId: prospectId,
+      metadata: { business_name: prospect.business_name, status: prospect.status },
+    })
 
     const { error } = await supabase.from('prospects').delete().eq('id', prospectId)
     if (!error) {

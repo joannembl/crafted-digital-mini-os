@@ -119,6 +119,17 @@ create table if not exists public.business_research (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  actor_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 
 -- Safe Phase 3/4 upgrade columns for existing projects.
 alter table public.prospects add column if not exists slug text;
@@ -169,6 +180,7 @@ alter table public.workspace_invites enable row level security;
 alter table public.prospects enable row level security;
 alter table public.activities enable row level security;
 alter table public.business_research enable row level security;
+alter table public.audit_logs enable row level security;
 
 
 -- Backfill readable slugs for existing prospects. The app also falls back to a generated slug if this is empty.
@@ -177,6 +189,12 @@ set slug = regexp_replace(lower(trim(business_name)), '[^a-z0-9]+', '-', 'g')
 where slug is null or slug = '';
 
 create index if not exists prospects_workspace_slug_idx on public.prospects(workspace_id, slug);
+create index if not exists prospects_workspace_status_idx on public.prospects(workspace_id, status);
+create index if not exists prospects_workspace_followup_idx on public.prospects(workspace_id, next_follow_up);
+create index if not exists activities_workspace_prospect_idx on public.activities(workspace_id, prospect_id, created_at desc);
+create index if not exists business_research_workspace_prospect_idx on public.business_research(workspace_id, prospect_id, created_at desc);
+create index if not exists audit_logs_workspace_created_idx on public.audit_logs(workspace_id, created_at desc);
+create index if not exists audit_logs_actor_created_idx on public.audit_logs(actor_id, created_at desc);
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.profiles to authenticated;
@@ -186,6 +204,7 @@ grant select, insert, update, delete on public.workspace_invites to authenticate
 grant select, insert, update, delete on public.prospects to authenticated;
 grant select, insert, update, delete on public.activities to authenticated;
 grant select, insert, update, delete on public.business_research to authenticated;
+grant select, insert on public.audit_logs to authenticated;
 
 
 -- Security Hardening Sprint
@@ -237,6 +256,9 @@ drop policy if exists "Members can read activities" on public.activities;
 drop policy if exists "Members can create activities" on public.activities;
 drop policy if exists "Members can update activities" on public.activities;
 drop policy if exists "Owners can delete activities" on public.activities;
+
+drop policy if exists "Members can read audit logs" on public.audit_logs;
+drop policy if exists "Members can create audit logs" on public.audit_logs;
 
 -- Remove SECURITY DEFINER helper functions flagged by Supabase Security Advisor.
 drop function if exists public.accept_workspace_invite(text);
@@ -445,5 +467,26 @@ create policy "Owners can delete activities" on public.activities for delete to 
     where wm.workspace_id = activities.workspace_id
       and wm.user_id = auth.uid()
       and wm.role = 'owner'
+  )
+);
+
+
+-- Audit logs
+-- Members can read audit history for their workspace. Users can only create audit records as themselves.
+create policy "Members can read audit logs" on public.audit_logs for select to authenticated using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = audit_logs.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
+create policy "Members can create audit logs" on public.audit_logs for insert to authenticated with check (
+  actor_id = auth.uid()
+  and exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = audit_logs.workspace_id
+      and wm.user_id = auth.uid()
   )
 );
