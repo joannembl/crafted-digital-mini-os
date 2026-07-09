@@ -477,6 +477,23 @@ export function ProspectsProvider({ children }) {
     return { data: activity, error }
   }
 
+  async function deleteAllProspectActivities(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    const deletedActivities = activities.filter((item) => item.prospect_id === prospectId)
+
+    if (!isSupabaseConfigured) {
+      const nextActivities = activities.filter((item) => item.prospect_id !== prospectId)
+      persistLocal(prospects, nextActivities)
+      return { data: deletedActivities, error: null }
+    }
+
+    const { error } = await supabase.from('activities').delete().eq('prospect_id', prospectId)
+    if (!error) setActivities((current) => current.filter((item) => item.prospect_id !== prospectId))
+    return { data: deletedActivities, error }
+  }
+
   async function clearDemo(prospectId) {
     const prospect = prospects.find((item) => item.id === prospectId)
     if (!prospect) return { error: new Error('Prospect not found') }
@@ -575,6 +592,7 @@ export function ProspectsProvider({ children }) {
     updateProspect,
     addActivity,
     deleteActivity,
+    deleteAllProspectActivities,
     clearDemo,
     clearClientDetails,
     deleteProspect,

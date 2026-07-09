@@ -836,6 +836,23 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
 }
 
 /* Phase 9.7 delete and cleanup controls */
+
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+@media (max-width: 640px) {
+  .section-actions {
+    justify-content: stretch;
+  }
+
+  .section-actions .danger-button {
+    width: 100%;
+  }
+}
 .danger-button {
   border: 1px solid #efb4a8;
   border-radius: 14px;
@@ -993,5 +1010,284 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   .confirm-dialog-actions button {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Phase 10 — Prospect Workspace UX Refresh */
+.prospect-workspace-page {
+  max-width: 1360px;
+  gap: 20px;
+}
+
+.workspace-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  align-items: flex-start;
+  background: rgba(246, 244, 239, 0.88);
+  border-bottom: 1px solid rgba(231, 225, 212, 0.7);
+  margin: -36px -8px 0;
+  padding: 28px 8px 18px;
+  backdrop-filter: blur(12px);
+}
+
+.workspace-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.workspace-meta-row span,
+.workspace-stage {
+  border: 1px solid #e7e1d4;
+  border-radius: 999px;
+  background: #fff;
+  color: #5f6259;
+  font-size: 0.84rem;
+  font-weight: 900;
+  padding: 7px 11px;
+}
+
+.workspace-stage-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workspace-stage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  text-align: center;
+}
+
+.workspace-stage.active {
+  border-color: #171915;
+  background: #171915;
+  color: #fff;
+}
+
+.prospect-workspace-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.workspace-card-pair {
+  align-items: stretch;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace-panel,
+.equal-panel {
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.workspace-panel-header-static,
+.collapsible-title-wrap {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+}
+
+.workspace-panel-header-static {
+  margin-bottom: 18px;
+}
+
+.workspace-panel-header-static h2,
+.collapsible-title-wrap h2 {
+  margin: 0 0 4px;
+}
+
+.workspace-panel-header-static p,
+.collapsible-title-wrap small {
+  color: #6b6f65;
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.workspace-section-icon {
+  align-items: center;
+  background: #fff6df;
+  border: 1px solid #ead69b;
+  border-radius: 14px;
+  color: #8a6b26;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.workspace-section-icon.danger {
+  background: #fff1ee;
+  border-color: #efb4a8;
+  color: #9f2418;
+}
+
+.workspace-section-body {
+  border-top: 1px solid #eee8dc;
+  display: grid;
+  flex: 1;
+  gap: 14px;
+  margin-top: 4px;
+  padding-top: 18px;
+}
+
+.workspace-form-grid {
+  gap: 16px;
+}
+
+.workspace-form-grid textarea {
+  min-height: 132px;
+}
+
+.workspace-mini-grid,
+.demo-tracker-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace-card-footer {
+  align-items: center;
+  border-top: 1px solid #eee8dc;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.workspace-card-footer.stacked {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-content: stretch;
+}
+
+.workspace-proposal-summary,
+.workspace-action-card {
+  background: #fbfaf7;
+  border: 1px solid #e7e1d4;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.workspace-proposal-summary span {
+  color: #8a6b26;
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.workspace-proposal-summary strong,
+.workspace-action-card h3 {
+  display: block;
+  margin: 0 0 6px;
+}
+
+.workspace-proposal-summary p,
+.workspace-action-card p {
+  margin: 0;
+}
+
+.workspace-activity-form {
+  background: #fbfaf7;
+  border: 1px solid #e7e1d4;
+  border-radius: 18px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.workspace-timeline .timeline-item {
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.workspace-danger-zone {
+  padding: 24px;
+}
+
+.collapsible-panel-header {
+  margin: 0;
+}
+
+.collapsible-panel-header .chevron {
+  margin-top: 10px;
+}
+
+@media (max-width: 1100px) {
+  .workspace-page-header {
+    position: static;
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .workspace-card-pair,
+  .demo-tracker-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .prospect-workspace-page {
+    gap: 16px;
+  }
+
+  .workspace-stage-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .workspace-stage {
+    flex: 0 0 auto;
+    min-width: 118px;
+  }
+
+  .workspace-panel,
+  .equal-panel,
+  .workspace-danger-zone {
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .workspace-panel-header-static,
+  .collapsible-title-wrap {
+    gap: 10px;
+  }
+
+  .workspace-section-icon {
+    height: 36px;
+    width: 36px;
+  }
+
+  .workspace-card-footer,
+  .workspace-mini-grid {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-card-footer .primary-button,
+  .workspace-card-footer .secondary-button,
+  .workspace-card-footer .danger-button {
+    width: 100%;
   }
 }

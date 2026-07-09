@@ -350,9 +350,9 @@ export function DemoBuilderPage() {
             ) : null}
 
             <div className="action-row">
-              {/* <button className="primary-button" type="button" onClick={generateWithAi} disabled={generatingAi}>
+              <button className="primary-button" type="button" onClick={generateWithAi} disabled={generatingAi}>
                 <Sparkles size={16} /> {generatingAi ? 'Generating with AI...' : 'Generate with AI'}
-              </button> */}
+              </button>
               <button className="secondary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
                 <Sparkles size={16} /> Basic Demo Plan
               </button>
