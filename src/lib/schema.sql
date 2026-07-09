@@ -69,6 +69,8 @@ create table if not exists public.prospects (
   demo_site_css text,
   demo_design_summary text,
   demo_style text,
+  brand_logo_url text,
+  brand_profile jsonb,
   package_type text,
   monthly_price numeric(10,2),
   setup_fee numeric(10,2),
@@ -99,6 +101,8 @@ create table if not exists public.business_research (
   provider text not null default 'google_places',
   google_json jsonb,
   website_content jsonb,
+  brand_profile jsonb,
+  logo_url text,
   ai_summary text,
   source_links text,
   created_at timestamptz not null default now()
@@ -121,6 +125,8 @@ alter table public.prospects add column if not exists demo_site_html text;
 alter table public.prospects add column if not exists demo_site_css text;
 alter table public.prospects add column if not exists demo_design_summary text;
 alter table public.prospects add column if not exists demo_style text;
+alter table public.prospects add column if not exists brand_logo_url text;
+alter table public.prospects add column if not exists brand_profile jsonb;
 alter table public.prospects add column if not exists package_type text;
 alter table public.prospects add column if not exists monthly_price numeric(10,2);
 alter table public.prospects add column if not exists setup_fee numeric(10,2);
@@ -130,6 +136,9 @@ alter table public.prospects add column if not exists proposal_status text not n
 alter table public.prospects add column if not exists proposal_notes text;
 alter table public.prospects add column if not exists proposal_sent_at timestamptz;
 alter table public.prospects add column if not exists converted_at timestamptz;
+
+alter table public.business_research add column if not exists brand_profile jsonb;
+alter table public.business_research add column if not exists logo_url text;
 
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;

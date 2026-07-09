@@ -269,6 +269,7 @@ export function ProspectsProvider({ children }) {
         contact_prompt: 'Reach out today to get started.',
         design_notes: 'Mobile-first, simple sections, bold CTA, and local trust cues.',
         designed_site: { html: '', css: '', summary: 'Local preview demo copy only', style_direction: 'Modern clean' },
+        brand_profile: { logo_url: prospect.brand_logo_url || '', detected_colors: [], source: 'local_preview' },
         sources: [],
       }
       const result = await updateProspect(prospectId, {
@@ -284,6 +285,8 @@ export function ProspectsProvider({ children }) {
         demo_site_css: generated.designed_site?.css || '',
         demo_design_summary: generated.designed_site?.summary || generated.design_notes || '',
         demo_style: generated.designed_site?.style_direction || 'Modern clean',
+        brand_logo_url: generated.brand_profile?.logo_url || prospect.brand_logo_url || '',
+        brand_profile: generated.brand_profile || null,
       })
       if (!result.error) await addActivity(prospectId, { type: 'AI Demo', note: 'Generated AI-designed demo page in local preview mode.' })
       return result
@@ -313,6 +316,8 @@ export function ProspectsProvider({ children }) {
       demo_site_css: generated?.designed_site?.css || '',
       demo_design_summary: generated?.designed_site?.summary || generated?.design_notes || '',
       demo_style: generated?.designed_site?.style_direction || '',
+      brand_logo_url: generated?.brand_profile?.logo_url || data.research?.brand_profile?.logo_url || prospect.brand_logo_url || '',
+      brand_profile: generated?.brand_profile || data.research?.brand_profile || null,
     })
 
     if (!result.error && data.research) {
@@ -322,6 +327,8 @@ export function ProspectsProvider({ children }) {
         provider: data.researchProvider || data.research.provider || 'google_places',
         google_json: data.research.google_place || null,
         website_content: data.research.website_content || null,
+        brand_profile: generated?.brand_profile || data.research?.brand_profile || null,
+        logo_url: generated?.brand_profile?.logo_url || data.research?.brand_profile?.logo_url || '',
         ai_summary: generated?.research_summary || data.research?.research_summary || '',
         source_links: sourceLinks,
       })

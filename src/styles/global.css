@@ -761,3 +761,76 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   font-size: 12px;
   line-height: 1.5;
 }
+
+.brand-profile-card {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(14, 165, 233, 0.08));
+  border-radius: 24px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.brand-profile-card img,
+.brand-logo-placeholder {
+  width: 86px;
+  height: 86px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  object-fit: contain;
+  padding: 10px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+.brand-logo-placeholder {
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.brand-profile-card h3 {
+  margin: 2px 0 6px;
+}
+
+.brand-profile-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.color-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.color-chip i {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+@media (max-width: 640px) {
+  .brand-profile-card {
+    grid-template-columns: 1fr;
+  }
+}

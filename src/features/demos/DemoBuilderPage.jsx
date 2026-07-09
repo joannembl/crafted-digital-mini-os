@@ -189,9 +189,9 @@ export function DemoBuilderPage() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Phase 9.3</p>
+          <p className="eyebrow">Phase 9.4</p>
           <h1>Demo Builder</h1>
-          <p>Pick a prospect, generate an AI-designed demo page, deploy it, then wait for GitHub Pages to finish publishing.</p>
+          <p>Pick a prospect, generate a brand-aware AI demo page, deploy it, then wait for GitHub Pages to finish publishing.</p>
         </div>
         {saved && <span className="save-pill">{saved}</span>}
       </header>
@@ -213,7 +213,7 @@ export function DemoBuilderPage() {
         {!isTutorialCollapsed && (
           <div className="tutorial-steps">
             <article className="tutorial-step"><span>1</span><div><h3>Pick a prospect</h3><p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p></div></article>
-            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate with AI</strong> to research the business, generate copy, and create a polished custom demo page.</p></div></article>
+            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate with AI</strong> to research the business, detect the logo/brand colors, and create a custom demo page.</p></div></article>
             <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Review the AI research summary, demo copy, and design notes before publishing.</p></div></article>
             <article className="tutorial-step"><span>4</span><div><h3>Deploy the demo</h3><p>Click <strong>Deploy to GitHub Pages</strong>. The OS will push the AI-generated HTML/CSS files and mark the site as publishing.</p></div></article>
             <article className="tutorial-step"><span>5</span><div><h3>Wait for publishing</h3><p>GitHub Pages can take 1–3 minutes. Use <strong>Check if live</strong> until the preview is ready.</p></div></article>
@@ -285,6 +285,28 @@ export function DemoBuilderPage() {
               </div>
             ) : null}
 
+            {(selected.brand_logo_url || selected.brand_profile) ? (
+              <div className="brand-profile-card">
+                {selected.brand_logo_url ? (
+                  <img src={selected.brand_logo_url} alt={`${selected.business_name} logo`} />
+                ) : (
+                  <div className="brand-logo-placeholder">Logo</div>
+                )}
+                <div>
+                  <p className="eyebrow">Brand profile</p>
+                  <h3>{selected.demo_style || 'Brand-aware design'}</h3>
+                  <p>AI will use the logo and detected brand cues to avoid generating the same theme for every prospect.</p>
+                  {selected.brand_profile?.detected_colors?.length ? (
+                    <div className="color-chip-row">
+                      {selected.brand_profile.detected_colors.map((color) => (
+                        <span key={color} className="color-chip"><i style={{ background: color }} />{color}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             <div className="action-row">
               <button className="primary-button" type="button" onClick={generateWithAi} disabled={generatingAi}>
                 <Sparkles size={16} /> {generatingAi ? 'Generating with AI...' : 'Generate with AI'}
@@ -304,6 +326,7 @@ export function DemoBuilderPage() {
             </div>
 
             <div className="form-grid compact">
+              <label className="span-2">Logo URL / brand image<input value={selected.brand_logo_url || ''} onChange={(e) => patch({ brand_logo_url: e.target.value })} placeholder="https://business.com/logo.png — optional, AI will also try to detect this" /></label>
               <label className="span-2">Demo brief<textarea value={selected.demo_brief || ''} onChange={(e) => patch({ demo_brief: e.target.value })} placeholder="What should this demo focus on?" /></label>
               <label className="span-2 tall-textarea">Generated copy / site structure<textarea value={selected.demo_copy || ''} onChange={(e) => patch({ demo_copy: e.target.value })} placeholder="Hero copy, sections, CTA, notes..." /></label>
               <label>Preview URL<input value={selected.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value, deployment_status: e.target.value ? 'live' : 'idle' })} placeholder="https://demo.netlify.app" /></label>

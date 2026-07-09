@@ -4,7 +4,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-type Prospect = Record<string, string | null | undefined>
+type Prospect = Record<string, unknown>
 type Source = { title: string; link: string; snippet: string }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -31,6 +31,89 @@ function normalizeUrl(url = '') {
   if (!url) return ''
   if (url.startsWith('http://') || url.startsWith('https://')) return url
   return `https://${url}`
+}
+
+
+function resolveUrl(url = '', base = '') {
+  if (!url) return ''
+  const cleaned = url.trim()
+  if (cleaned.startsWith('data:')) return ''
+  try {
+    return new URL(cleaned, base || undefined).toString()
+  } catch {
+    return normalizeUrl(cleaned)
+  }
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
+}
+
+function extractHexColors(html = '') {
+  const matches = Array.from(html.matchAll(/#(?:[0-9a-fA-F]{3}){1,2}\b/g)).map((match) => match[0].toLowerCase())
+  const ignored = new Set(['#fff', '#ffffff', '#000', '#000000', '#111', '#111111', '#222', '#222222', '#333', '#333333', '#f5f5f5', '#f7f7f7', '#fafafa'])
+  const counts = new Map<string, number>()
+  for (const color of matches) {
+    if (ignored.has(color)) continue
+    counts.set(color, (counts.get(color) || 0) + 1)
+  }
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([color]) => color).slice(0, 6)
+}
+
+function extractLogoUrl(html = '', websiteUrl = '') {
+  const candidates: string[] = []
+
+  const metaPatterns = [
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["'][^>]*>/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["'][^>]*>/i,
+  ]
+  for (const pattern of metaPatterns) {
+    const match = html.match(pattern)
+    if (match?.[1]) candidates.push(match[1])
+  }
+
+  const linkMatches = Array.from(html.matchAll(/<link[^>]+rel=["'][^"']*(?:icon|apple-touch-icon|shortcut icon)[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>/gi))
+  for (const match of linkMatches) candidates.push(match[1])
+
+  const imgMatches = Array.from(html.matchAll(/<img[^>]+>/gi))
+  for (const match of imgMatches) {
+    const tag = match[0]
+    const src = tag.match(/src=["']([^"']+)["']/i)?.[1] || ''
+    const alt = tag.match(/alt=["']([^"']*)["']/i)?.[1] || ''
+    const className = tag.match(/class=["']([^"']*)["']/i)?.[1] || ''
+    const id = tag.match(/id=["']([^"']*)["']/i)?.[1] || ''
+    const signal = `${src} ${alt} ${className} ${id}`.toLowerCase()
+    if (src && /logo|brand|site-title|header-logo/.test(signal)) candidates.unshift(src)
+  }
+
+  const resolved = uniqueValues(candidates.map((candidate) => resolveUrl(candidate, websiteUrl)))
+  return resolved.find((url) => /\.(png|jpe?g|webp|svg|gif|ico)(\?|#|$)/i.test(url)) || resolved[0] || ''
+}
+
+function buildBrandProfile(prospect: Prospect, places: Awaited<ReturnType<typeof lookupGooglePlace>>, website: Awaited<ReturnType<typeof scrapeWebsite>>) {
+  const manualLogo = prospect.logo_url || prospect.brand_logo_url || ''
+  const logoUrl = normalizeUrl(manualLogo) || website?.logoUrl || ''
+  const colors = uniqueValues([
+    ...((website?.brandColors as string[] | undefined) || []),
+  ]).slice(0, 6)
+  const placeType = places.place?.type || prospect.category || 'local business'
+  const websiteTitle = website?.title || ''
+  const styleHints = [
+    `Business type: ${placeType}`,
+    websiteTitle ? `Website title: ${websiteTitle}` : '',
+    logoUrl ? 'Use the discovered logo as a visible brand anchor.' : 'No logo was discovered; create a distinctive typography-based brand mark.',
+    colors.length ? `Use/adapt these detected brand colors: ${colors.join(', ')}` : 'Choose a unique color palette based on the business category and tone.',
+  ].filter(Boolean)
+
+  return {
+    logo_url: logoUrl,
+    detected_colors: colors,
+    business_type: placeType,
+    style_hints: styleHints,
+    source: logoUrl ? 'website_or_manual_logo' : 'ai_inferred',
+  }
 }
 
 async function lookupGooglePlace(prospect: Prospect) {
@@ -120,8 +203,10 @@ async function scrapeWebsite(url = '') {
     const headings = Array.from(html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)).slice(0, 12).map((match) => cleanText(match[1])).filter(Boolean)
     const paragraphs = Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)).slice(0, 18).map((match) => cleanText(match[1])).filter((text) => text.length > 20)
     const bodyText = truncate([title, metaDescription, ...headings, ...paragraphs].filter(Boolean).join('\n'), 5000)
+    const logoUrl = extractLogoUrl(html, websiteUrl)
+    const brandColors = extractHexColors(html)
 
-    return { url: websiteUrl, title, metaDescription, headings, paragraphs, bodyText }
+    return { url: websiteUrl, title, metaDescription, headings, paragraphs, bodyText, logoUrl, brandColors }
   } catch (error) {
     return { url: websiteUrl, error: error.message || 'Unable to scrape website' }
   }
@@ -137,6 +222,8 @@ function buildResearchSummary(prospect: Prospect, places: Awaited<ReturnType<typ
     place?.rating ? `Rating: ${place.rating} from ${place.reviewCount || 0} reviews.` : '',
     place?.hours ? `Hours found from Google Places.` : '',
     website?.bodyText ? `Website content was reviewed from ${website.url}.` : website?.error ? `Website scrape issue: ${website.error}.` : 'No website content was available to review.',
+    website?.logoUrl ? `Logo detected from website: ${website.logoUrl}.` : '',
+    Array.isArray(website?.brandColors) && website.brandColors.length ? `Brand colors detected: ${website.brandColors.join(', ')}.` : '',
   ].filter(Boolean)
   return lines.join(' ')
 }
@@ -144,6 +231,8 @@ function buildResearchSummary(prospect: Prospect, places: Awaited<ReturnType<typ
 function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Source[]) {
   const name = prospect.business_name || 'Local Business'
   const category = prospect.category || 'local business'
+  const brandProfile = (prospect.brand_profile && typeof prospect.brand_profile === 'object') ? prospect.brand_profile as Record<string, unknown> : {}
+  const logoUrl = (prospect.brand_logo_url || brandProfile.logo_url || '').toString()
   const safeName = name.replace(/[<>&]/g, '')
   const html = `<!doctype html>
 <html lang="en">
@@ -156,7 +245,7 @@ function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Sour
 <body>
   <div class="preview-bar">Preview site designed for ${safeName} · demo content is placeholder · not yet live</div>
   <header class="site-header">
-    <a class="logo" href="#">${safeName}</a>
+    <a class="logo" href="#">${logoUrl ? `<img src="${logoUrl}" alt="${safeName} logo" />` : ''}<span>${safeName}</span></a>
     <nav><a href="#services">Services</a><a href="#about">About</a><a href="#contact">Contact</a></nav>
   </header>
   <main>
@@ -177,7 +266,7 @@ function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Sour
 </body>
 </html>`
 
-  const css = `:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f7f2ea}*{box-sizing:border-box}body{margin:0}a{color:inherit}.preview-bar{background:#111827;color:white;text-align:center;padding:10px 18px;font-size:14px}.site-header{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:22px min(6vw,64px);background:rgba(247,242,234,.82);backdrop-filter:blur(16px);position:sticky;top:0;z-index:10}.logo{font-weight:900;text-decoration:none;font-size:20px}nav{display:flex;gap:18px}nav a{text-decoration:none;color:#536071;font-weight:700}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;padding:82px min(6vw,64px)}.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:12px;color:#a05a1c;font-weight:900}.hero h1{font-size:clamp(42px,7vw,86px);line-height:.94;letter-spacing:-.07em;margin:12px 0}.hero p,.split p,.cta p{font-size:19px;line-height:1.7;color:#536071}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.button{border-radius:999px;padding:14px 22px;text-decoration:none;font-weight:900;border:1px solid #172033}.primary{background:#172033;color:#fff}.secondary{background:#fff}.hero-card{min-height:420px;border-radius:36px;padding:32px;display:grid;align-content:end;gap:16px;background:radial-gradient(circle at 20% 20%,#fff 0 16%,#f3c27c 17% 38%,#d96d37 39% 62%,#172033 63%);box-shadow:0 32px 80px rgba(23,32,51,.18);color:#fff}.hero-card span{font-weight:900;text-transform:uppercase;letter-spacing:.12em}.hero-card strong{font-size:34px;line-height:1.05}.section,.split,.cta{padding:74px min(6vw,64px)}.section h2,.split h2,.cta h2{font-size:clamp(30px,4vw,52px);letter-spacing:-.04em;margin:10px 0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}.cards article{background:white;border:1px solid rgba(23,32,51,.08);border-radius:28px;padding:26px;box-shadow:0 18px 40px rgba(23,32,51,.07)}.cards h3{margin-top:0}.split{display:grid;grid-template-columns:.9fr 1.1fr;gap:32px;background:white}.cta{margin:min(6vw,64px);border-radius:36px;background:#172033;color:white}.cta p{color:#d7deea}footer{text-align:center;padding:32px;color:#667085}@media(max-width:820px){.site-header{align-items:flex-start;flex-direction:column}.hero,.split,.cards{grid-template-columns:1fr}.hero-card{min-height:300px}.cta{margin:20px}}`
+  const css = `:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f7f2ea}*{box-sizing:border-box}body{margin:0}a{color:inherit}.preview-bar{background:#111827;color:white;text-align:center;padding:10px 18px;font-size:14px}.site-header{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:22px min(6vw,64px);background:rgba(247,242,234,.82);backdrop-filter:blur(16px);position:sticky;top:0;z-index:10}.logo{font-weight:900;text-decoration:none;font-size:20px;display:flex;align-items:center;gap:10px}.logo img{width:44px;height:44px;object-fit:contain;border-radius:12px;background:white;padding:4px}nav{display:flex;gap:18px}nav a{text-decoration:none;color:#536071;font-weight:700}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;padding:82px min(6vw,64px)}.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:12px;color:#a05a1c;font-weight:900}.hero h1{font-size:clamp(42px,7vw,86px);line-height:.94;letter-spacing:-.07em;margin:12px 0}.hero p,.split p,.cta p{font-size:19px;line-height:1.7;color:#536071}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.button{border-radius:999px;padding:14px 22px;text-decoration:none;font-weight:900;border:1px solid #172033}.primary{background:#172033;color:#fff}.secondary{background:#fff}.hero-card{min-height:420px;border-radius:36px;padding:32px;display:grid;align-content:end;gap:16px;background:radial-gradient(circle at 20% 20%,#fff 0 16%,#f3c27c 17% 38%,#d96d37 39% 62%,#172033 63%);box-shadow:0 32px 80px rgba(23,32,51,.18);color:#fff}.hero-card span{font-weight:900;text-transform:uppercase;letter-spacing:.12em}.hero-card strong{font-size:34px;line-height:1.05}.section,.split,.cta{padding:74px min(6vw,64px)}.section h2,.split h2,.cta h2{font-size:clamp(30px,4vw,52px);letter-spacing:-.04em;margin:10px 0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}.cards article{background:white;border:1px solid rgba(23,32,51,.08);border-radius:28px;padding:26px;box-shadow:0 18px 40px rgba(23,32,51,.07)}.cards h3{margin-top:0}.split{display:grid;grid-template-columns:.9fr 1.1fr;gap:32px;background:white}.cta{margin:min(6vw,64px);border-radius:36px;background:#172033;color:white}.cta p{color:#d7deea}footer{text-align:center;padding:32px;color:#667085}@media(max-width:820px){.site-header{align-items:flex-start;flex-direction:column}.hero,.split,.cards{grid-template-columns:1fr}.hero-card{min-height:300px}.cta{margin:20px}}`
 
   return {
     research_summary: researchSummary || 'Generated from the prospect details only.',
@@ -205,6 +294,7 @@ function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Sour
 
 function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, sources: Source[]) {
   const styleDirection = prospect.design_style || prospect.demo_style || 'modern polished local business website'
+  const brandProfile = research.brand_profile || {}
   return {
     prospect: {
       business_name: prospect.business_name,
@@ -219,6 +309,7 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       style_direction: styleDirection,
     },
     research,
+    brand_profile: brandProfile,
     sources,
     instructions: [
       'Create a complete polished demo website for a local website agency preview site.',
@@ -226,14 +317,17 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       'Do not quote reviews. You may summarize broad public facts from the research.',
       'The public website must include a visible preview disclaimer near the top: Preview site designed for [Business Name] · demo content is placeholder · not yet live.',
       'Return valid JSON only. Do not wrap the response in markdown.',
-      'Required top-level keys: research_summary, hero_headline, hero_subheadline, primary_cta, secondary_cta, sections, about, contact_prompt, design_notes, designed_site, sources.',
+      'Required top-level keys: research_summary, brand_profile, hero_headline, hero_subheadline, primary_cta, secondary_cta, sections, about, contact_prompt, design_notes, designed_site, sources.',
       'sections must be an array of 3 to 6 objects with title and body.',
       'designed_site must be an object with keys: html, css, summary, style_direction.',
       'designed_site.html must be a complete HTML document that links to styles.css using <link rel="stylesheet" href="styles.css">.',
       'designed_site.css must be complete responsive CSS for the page.',
-      'Make the design visually strong, modern, responsive, and tailored to the business category. Avoid a plain generic template.',
+      'Make the design visually strong, modern, responsive, and tailored to this specific business brand. Avoid reusing the same theme across businesses.',
+      'If brand_profile.logo_url exists, use it as a visible logo in the header/hero with an absolute image URL. This is the only external image allowed.',
+      'If brand_profile.detected_colors has colors, build the CSS palette around those colors. If not, create a unique palette that fits the business type.',
+      'Create a distinctive layout treatment that fits the business: for example cafe warmth, automotive grit, beauty/luxury softness, professional services trust, or retail energy.',
       'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer.',
-      'Do not include external JavaScript, tracking scripts, external images, or remote fonts.',
+      'Do not include external JavaScript, tracking scripts, remote fonts, or external images except the provided logo URL.',
       'Use CSS gradients, shapes, cards, spacing, and typography to make the demo look premium even without photos.',
       'sources must be an array of objects with title, link, snippet from the sources used.',
     ],
@@ -354,11 +448,13 @@ Deno.serve(async (request) => {
     const websiteSource = website?.bodyText ? [{ title: `Website: ${website.title || website.url}`, link: website.url || '', snippet: truncate(website.metaDescription || website.bodyText || '', 260) }] : []
     const sources = [...placesSources, ...websiteSource]
     const researchSummary = buildResearchSummary(prospect, places, website)
+    const brandProfile = buildBrandProfile(prospect, places, website)
     const research = {
       provider: 'google_places',
       research_summary: researchSummary,
       google_place: places.place,
       website_content: website,
+      brand_profile: brandProfile,
       sources,
     }
 

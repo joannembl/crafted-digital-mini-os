@@ -40,14 +40,16 @@ function escapeHtml(value = '') {
     .replaceAll("'", '&#039;')
 }
 
-function buildSiteHtml(prospect: Record<string, string>) {
-  const businessName = prospect.business_name || 'Local Business'
-  const category = prospect.category || 'Local business'
-  const phone = prospect.phone || ''
-  const email = prospect.email || ''
-  const instagram = prospect.instagram || ''
-  const website = prospect.website || ''
-  const demoCopy = prospect.demo_copy || ''
+function buildSiteHtml(prospect: Record<string, unknown>) {
+  const businessName = String(prospect.business_name || 'Local Business')
+  const category = String(prospect.category || 'Local business')
+  const phone = String(prospect.phone || '')
+  const email = String(prospect.email || '')
+  const instagram = String(prospect.instagram || '')
+  const website = String(prospect.website || '')
+  const brandProfile = prospect.brand_profile && typeof prospect.brand_profile === 'object' ? prospect.brand_profile as Record<string, unknown> : {}
+  const logoUrl = String(prospect.brand_logo_url || brandProfile.logo_url || '')
+  const demoCopy = String(prospect.demo_copy || '')
   const notes = demoCopy
     .split('\n')
     .map((line) => line.trim())
@@ -68,6 +70,7 @@ function buildSiteHtml(prospect: Record<string, string>) {
     .notice { background: #172033; color: white; font-size: 14px; padding: 10px 18px; text-align: center; }
     .hero { min-height: 72vh; display: grid; place-items: center; padding: 72px 20px; background: linear-gradient(135deg, #fffaf0, #efe6d2); }
     .hero-card { width: min(1040px, 100%); display: grid; grid-template-columns: 1.1fr .9fr; gap: 32px; align-items: center; }
+    .brand-logo { width: 96px; max-height: 72px; object-fit: contain; margin-bottom: 18px; background: white; border-radius: 18px; padding: 10px; box-shadow: 0 16px 42px rgba(23,32,51,.12); }
     .eyebrow { color: #9a6b2f; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
     h1 { font-size: clamp(42px, 7vw, 82px); line-height: .94; margin: 14px 0; letter-spacing: -0.06em; }
     p { color: #536071; font-size: 18px; line-height: 1.7; }
@@ -95,6 +98,7 @@ function buildSiteHtml(prospect: Record<string, string>) {
     <section class="hero">
       <div class="hero-card">
         <div>
+          ${logoUrl ? `<img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(businessName)} logo" />` : ''}
           <div class="eyebrow">${escapeHtml(category)}</div>
           <h1>${escapeHtml(businessName)}</h1>
           <p>A simple, modern website demo built to help local customers understand what you offer and contact you quickly.</p>
