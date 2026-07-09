@@ -1,51 +1,235 @@
 # Crafted Digital Mini OS
 
-A clean, Supabase-ready starter for running the early Crafted Digital website agency workflow.
+A modern operating system for running a website agency.
 
-## Phase 1 included
+Crafted Digital Mini OS helps agencies discover local businesses, generate personalized demo websites, manage prospects, collaborate with team members, and convert leads into paying clients.
 
-- Vite + React app foundation
-- React Router layout
-- Simple design system and app shell
-- Supabase client setup
-- Auth screen with sign in / sign up
-- Workspace model for Owner + Member
-- Local preview fallback when Supabase keys are not set
-- Starter Supabase SQL schema with RLS for:
-  - profiles
-  - workspaces
-  - workspace_members
+---
 
-## Workflow this app is built around
+## ✨ Features
 
-Add Prospect → Build Demo → Send Demo → Follow Up → Mark Won
+### CRM
+- Prospect Management
+- Pipeline
+- Prospect Workspace
+- Activity Timeline
+- Notes
+- Proposal Management
 
-## Setup
+### Demo Builder
+- AI Demo Studio
+- Google Places Import
+- Business Research
+- Creative Brief Builder
+- Demo Deployment to GitHub Pages
+- Preview & Publish Workflow
+
+### Team Collaboration
+- Multi-workspace support
+- Owner / Member roles
+- Invite Codes
+- Workspace Settings
+- Audit Logs
+
+### Productivity
+- Toast Notifications
+- Confirmation Modals
+- Unsaved Changes Protection
+- Responsive UI
+- Collapsible Sidebar
+- Collapsible Workspace Sections
+
+### Security
+- Supabase Authentication
+- Row Level Security (RLS)
+- Workspace Isolation
+- Protected Edge Functions
+- Production Hardening
+
+---
+
+# Tech Stack
+
+Frontend
+
+- React
+- Vite
+- React Router
+- Tailwind CSS
+- Supabase JS
+
+Backend
+
+- Supabase
+- Edge Functions (Deno)
+
+Deployment
+
+- GitHub Pages
+- GitHub Actions
+
+AI
+
+Currently supported
+
+- Google Places API
+- Gemini (optional)
+- OpenAI (optional)
+
+Future
+
+- OpenRouter
+- Claude
+- Multi-provider AI Architecture
+
+---
+
+# Current Workflow
+
+Import Business
+
+↓
+
+Research Business
+
+↓
+
+Create Creative Brief
+
+↓
+
+Generate Demo Website
+
+↓
+
+Deploy to GitHub Pages
+
+↓
+
+Email Prospect
+
+↓
+
+Follow Up
+
+↓
+
+Convert to Client
+
+---
+
+# Roadmap
+
+## ✅ Completed
+
+### Foundation
+
+- Authentication
+- Workspaces
+- Prospect Management
+- Pipeline
+- Activities
+- Notes
+
+### Demo Builder
+
+- Google Places Import
+- Demo Deployment
+- GitHub Pages Automation
+- Creative Brief
+- Demo Studio
+
+### UX
+
+- Responsive Layout
+- Sidebar Navigation
+- Confirmation Modals
+- Unsaved Changes
+- Toast Notifications
+
+### Security
+
+- Production Hardening
+- Audit Logs
+- Error Boundary
+- Security Indexes
+- RLS Improvements
+
+---
+
+# Current Focus
+
+## Phase 12+
+
+The next evolution of Crafted Digital Mini OS is moving from a simple AI generator to an AI-powered Demo Studio.
+
+Planned improvements include:
+
+- OpenRouter integration
+- Claude support
+- Multi-provider AI
+- Brand-aware demo generation
+- Website scraping
+- Social media research
+- Multiple design concepts
+- AI-assisted deployment workflow
+
+---
+
+# Vision
+
+The goal of Crafted Digital Mini OS is simple:
+
+> Generate a professional website demo for a local business in under five minutes.
+
+Instead of building websites manually, the platform automates research, demo generation, deployment, and client management—allowing agencies to focus on winning more clients.
+
+---
+
+# Local Development
+
+Install dependencies
 
 ```bash
 pnpm install
-cp .env.example .env
+```
+
+Start development server
+
+```bash
 pnpm dev
 ```
 
-## Connect Supabase
-
-1. Create a new Supabase project.
-2. Open the SQL editor.
-3. Run `src/lib/schema.sql`.
-4. Copy your project URL and anon key into `.env`:
+Build
 
 ```bash
-VITE_SUPABASE_URL=your_project_url
-VITE_SUPABASE_ANON_KEY=your_anon_key
+pnpm build
 ```
 
-5. Restart the dev server.
+Deploy Edge Functions
 
-## Phase 2 next
+```bash
+supabase functions deploy
+```
 
-- prospects table
-- prospect list page
-- prospect workspace page
-- activity notes
-- next follow-up tracking
+---
+
+# Environment Variables
+
+```
+VITE_SUPABASE_URL=
+
+VITE_SUPABASE_ANON_KEY=
+
+GOOGLE_PLACES_API_KEY=
+
+OPENROUTER_API_KEY=
+```
+
+---
+
+# License
+
+Private project.
+
+© Crafted Digital
