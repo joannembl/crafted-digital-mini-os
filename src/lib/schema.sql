@@ -51,6 +51,7 @@ create table if not exists public.prospects (
   phone text,
   email text,
   website text,
+  address text,
   instagram text,
   facebook text,
   status text not null default 'research',
@@ -116,6 +117,7 @@ create table if not exists public.business_research (
 alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
 alter table public.prospects add column if not exists facebook text;
+alter table public.prospects add column if not exists address text;
 alter table public.prospects add column if not exists deployment_status text not null default 'idle';
 alter table public.prospects add column if not exists deployment_checked_at timestamptz;
 alter table public.prospects add column if not exists demo_brief text;

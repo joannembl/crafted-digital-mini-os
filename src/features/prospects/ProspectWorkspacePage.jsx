@@ -1,5 +1,5 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Globe2, MessageSquareText, RotateCcw, Save, Send, Sparkles, Trash2, UserRound } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Globe2, MapPin, MessageSquareText, RotateCcw, Save, Send, Sparkles, Trash2, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -43,6 +43,7 @@ export function ProspectWorkspacePage() {
       website: prospect?.website || '',
       instagram: prospect?.instagram || '',
       facebook: prospect?.facebook || '',
+      address: prospect?.address || '',
       status: prospect?.status || 'research',
       next_follow_up: prospect?.next_follow_up || '',
       notes: prospect?.notes || '',
@@ -75,6 +76,12 @@ export function ProspectWorkspacePage() {
     const trimmed = (value || '').trim()
     if (!trimmed) return ''
     return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  }
+
+  function mapsUrl(value) {
+    const trimmed = (value || '').trim()
+    if (!trimmed) return ''
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`
   }
 
   function SocialField({ label, field, icon: Icon, placeholder }) {
@@ -120,6 +127,7 @@ export function ProspectWorkspacePage() {
       website: overviewDraft.website || null,
       instagram: overviewDraft.instagram || null,
       facebook: overviewDraft.facebook || null,
+      address: overviewDraft.address || null,
       status: overviewDraft.status || 'research',
       converted_at: overviewDraft.status === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at,
       next_follow_up: overviewDraft.next_follow_up || null,
@@ -274,6 +282,18 @@ export function ProspectWorkspacePage() {
             <label>Category<input value={overviewDraft.category || ''} onChange={(e) => updateOverviewDraft('category', e.target.value)} /></label>
             <label>Status<select value={overviewDraft.status || 'research'} onChange={(e) => updateOverviewDraft('status', e.target.value)}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Next follow-up<input type="date" value={overviewDraft.next_follow_up || ''} onChange={(e) => updateOverviewDraft('next_follow_up', e.target.value)} /></label>
+
+            <div className="overview-subsection span-2">
+              <h3>Location</h3>
+              <p>Add the business address for local context, Google Maps lookup, and AI-generated demo copy.</p>
+            </div>
+            <label className="span-2 social-field">
+              <span className="field-label-row"><MapPin size={15} /> Business address</span>
+              <span className="social-input-row">
+                <input value={overviewDraft.address || ''} onChange={(e) => updateOverviewDraft('address', e.target.value)} placeholder="Street address, city, state" />
+                {mapsUrl(overviewDraft.address) && <a className="inline-visit-button" href={mapsUrl(overviewDraft.address)} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Maps</a>}
+              </span>
+            </label>
 
             <div className="overview-subsection span-2">
               <h3>Contact & online presence</h3>
