@@ -49,6 +49,89 @@ function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)))
 }
 
+
+function hashString(value = '') {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) hash = ((hash << 5) - hash) + value.charCodeAt(i)
+  return Math.abs(hash)
+}
+
+const categoryPalettes: Record<string, string[][]> = {
+  cafe: [
+    ['#4b2e1f', '#c47f3f', '#f6ead7', '#7c8f62', '#211713'],
+    ['#2f241d', '#b85c38', '#fff1dd', '#d2a55f', '#5f7f69'],
+    ['#3e2b23', '#8b5e3c', '#f7efe4', '#b86b4b', '#2f5d50'],
+  ],
+  restaurant: [
+    ['#5c1f1b', '#c84630', '#fff3df', '#6f7d3c', '#211a16'],
+    ['#2e241f', '#a63d2a', '#f6dfb9', '#857346', '#171717'],
+  ],
+  automotive: [
+    ['#111827', '#e11d48', '#f59e0b', '#e5e7eb', '#020617'],
+    ['#151515', '#d72638', '#a5b4c3', '#f5f5f0', '#2b2d42'],
+    ['#0b0f14', '#ff5a1f', '#cbd5e1', '#111827', '#f8fafc'],
+  ],
+  beauty: [
+    ['#2b2024', '#d8a7b1', '#fff2f5', '#b68b5f', '#f7dfe6'],
+    ['#241a1f', '#c48b9f', '#f9e8dd', '#8c6a57', '#fffaf7'],
+  ],
+  fitness: [
+    ['#0f172a', '#84cc16', '#f97316', '#f8fafc', '#1f2937'],
+    ['#101820', '#f2aa4c', '#f7f7f2', '#4b5563', '#000000'],
+  ],
+  professional: [
+    ['#102a43', '#2f80ed', '#f4efe6', '#64748b', '#0f172a'],
+    ['#1f2937', '#0e7490', '#f5f1e8', '#94a3b8', '#111827'],
+  ],
+  luxury: [
+    ['#09090b', '#c6a15b', '#fffaf0', '#3f3f46', '#18181b'],
+    ['#111111', '#bfa46f', '#f7f0df', '#544936', '#000000'],
+  ],
+  default: [
+    ['#1f2937', '#0f766e', '#f7f3e8', '#d97706', '#111827'],
+    ['#212529', '#2a9d8f', '#f4f1de', '#e76f51', '#264653'],
+    ['#2d3142', '#ef8354', '#f5f0e6', '#4f5d75', '#111827'],
+  ],
+}
+
+const designDirections = [
+  'asymmetrical editorial landing page with magazine-style typography',
+  'bold conversion-focused homepage with diagonal hero panels',
+  'premium boutique layout with oversized whitespace and refined cards',
+  'warm neighborhood website with layered paper textures and organic shapes',
+  'high-energy promo page with split hero, stat blocks, and strong CTAs',
+  'minimal modern local business site with strong grid, sticky CTA, and calm palette',
+  'story-driven homepage with timeline-style sections and large quote block',
+  'visual-first brand page with floating cards, rounded panels, and unique section order',
+]
+
+function categoryKey(value = '') {
+  const text = value.toLowerCase()
+  if (/cafe|coffee|tea|bakery|boba/.test(text)) return 'cafe'
+  if (/restaurant|food|taco|pizza|bar|grill/.test(text)) return 'restaurant'
+  if (/auto|car|garage|detail|mechanic|tint|wrap|repair|motors/.test(text)) return 'automotive'
+  if (/beauty|salon|lash|brow|spa|nail|hair/.test(text)) return 'beauty'
+  if (/gym|fitness|trainer|yoga|pilates/.test(text)) return 'fitness'
+  if (/luxury|jewelry|boutique|estate/.test(text)) return 'luxury'
+  if (/law|account|consult|real estate|insurance|medical|dental/.test(text)) return 'professional'
+  return 'default'
+}
+
+function chooseBrandPalette(prospect: Prospect, detectedColors: string[]) {
+  const cleanDetected = uniqueValues(detectedColors || []).filter((color) => /^#[0-9a-f]{3,6}$/i.test(color)).slice(0, 5)
+  if (cleanDetected.length >= 2) return cleanDetected
+  const key = categoryKey([prospect.category, prospect.business_name, prospect.notes].filter(Boolean).join(' '))
+  const options = categoryPalettes[key] || categoryPalettes.default
+  return options[hashString(`${prospect.business_name || ''}-${prospect.category || ''}`) % options.length]
+}
+
+function chooseDesignDirection(prospect: Prospect) {
+  const existing = (prospect.design_direction || prospect.demo_style || '').toString().trim()
+  if (existing && !/modern clean|brand-aware design|modern polished local business website/i.test(existing)) return existing
+  const seed = `${prospect.business_name || ''}-${prospect.category || ''}-${prospect.website || ''}`
+  return designDirections[hashString(seed) % designDirections.length]
+}
+
 function extractHexColors(html = '') {
   const matches = Array.from(html.matchAll(/#(?:[0-9a-fA-F]{3}){1,2}\b/g)).map((match) => match[0].toLowerCase())
   const ignored = new Set(['#fff', '#ffffff', '#000', '#000000', '#111', '#111111', '#222', '#222222', '#333', '#333333', '#f5f5f5', '#f7f7f7', '#fafafa'])
@@ -95,24 +178,33 @@ function extractLogoUrl(html = '', websiteUrl = '') {
 function buildBrandProfile(prospect: Prospect, places: Awaited<ReturnType<typeof lookupGooglePlace>>, website: Awaited<ReturnType<typeof scrapeWebsite>>) {
   const manualLogo = prospect.logo_url || prospect.brand_logo_url || ''
   const logoUrl = normalizeUrl(manualLogo) || website?.logoUrl || ''
-  const colors = uniqueValues([
+  const detectedColors = uniqueValues([
     ...((website?.brandColors as string[] | undefined) || []),
   ]).slice(0, 6)
+  const brandPalette = chooseBrandPalette(prospect, detectedColors)
+  const designDirection = chooseDesignDirection(prospect)
   const placeType = places.place?.type || prospect.category || 'local business'
   const websiteTitle = website?.title || ''
+  const designSeed = hashString(`${prospect.business_name || ''}-${placeType}-${logoUrl}-${brandPalette.join('-')}`)
   const styleHints = [
     `Business type: ${placeType}`,
     websiteTitle ? `Website title: ${websiteTitle}` : '',
-    logoUrl ? 'Use the discovered logo as a visible brand anchor.' : 'No logo was discovered; create a distinctive typography-based brand mark.',
-    colors.length ? `Use/adapt these detected brand colors: ${colors.join(', ')}` : 'Choose a unique color palette based on the business category and tone.',
+    logoUrl ? 'Use the discovered/manual logo as a visible brand anchor.' : 'No logo was discovered; create a distinctive typography-based brand mark.',
+    detectedColors.length ? `Detected colors from website/assets: ${detectedColors.join(', ')}` : 'No reliable colors detected from a logo/site.',
+    `Required brand palette: ${brandPalette.join(', ')}`,
+    `Required design direction: ${designDirection}`,
+    `Design seed: ${designSeed}. Use this to make this site visually different from other generated demos.`,
   ].filter(Boolean)
 
   return {
     logo_url: logoUrl,
-    detected_colors: colors,
+    detected_colors: detectedColors,
+    brand_palette: brandPalette,
     business_type: placeType,
+    design_direction: designDirection,
+    design_seed: designSeed,
     style_hints: styleHints,
-    source: logoUrl ? 'website_or_manual_logo' : 'ai_inferred',
+    source: logoUrl ? 'website_or_manual_logo' : detectedColors.length ? 'website_colors' : 'category_palette',
   }
 }
 
@@ -293,8 +385,11 @@ function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Sour
 }
 
 function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, sources: Source[]) {
-  const styleDirection = prospect.design_style || prospect.demo_style || 'modern polished local business website'
   const brandProfile = research.brand_profile || {}
+  const styleDirection = (brandProfile as Record<string, unknown>).design_direction || prospect.design_direction || prospect.demo_style || chooseDesignDirection(prospect)
+  const palette = (brandProfile as Record<string, unknown>).brand_palette || chooseBrandPalette(prospect, [])
+  const designSeed = (brandProfile as Record<string, unknown>).design_seed || hashString(`${prospect.business_name || ''}-${Date.now()}`)
+
   return {
     prospect: {
       business_name: prospect.business_name,
@@ -310,9 +405,13 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
     },
     research,
     brand_profile: brandProfile,
+    required_palette: palette,
+    required_design_direction: styleDirection,
+    design_seed: designSeed,
     sources,
     instructions: [
-      'Create a complete polished demo website for a local website agency preview site.',
+      'You are not filling in a template. You are the visual web designer and front-end developer for this specific local business demo.',
+      'Generate a complete custom one-page website, not just copy. The website must feel designed specifically for this client and business type.',
       'Use only the provided prospect info, Google Places data, and website content. Do not invent exact claims, awards, prices, hours, addresses, reviews, or services unless provided.',
       'Do not quote reviews. You may summarize broad public facts from the research.',
       'The public website must include a visible preview disclaimer near the top: Preview site designed for [Business Name] · demo content is placeholder · not yet live.',
@@ -322,13 +421,18 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       'designed_site must be an object with keys: html, css, summary, style_direction.',
       'designed_site.html must be a complete HTML document that links to styles.css using <link rel="stylesheet" href="styles.css">.',
       'designed_site.css must be complete responsive CSS for the page.',
-      'Make the design visually strong, modern, responsive, and tailored to this specific business brand. Avoid reusing the same theme across businesses.',
+      `Mandatory palette: ${Array.isArray(palette) ? palette.join(', ') : palette}. Use these colors as CSS variables and as the dominant visual system.`,
+      `Mandatory design direction: ${styleDirection}.`,
+      `Design variation seed: ${designSeed}. Use this seed to choose unique section order, hero composition, card style, decorative shapes, spacing rhythm, and CTA treatment.`,
+      'Do NOT use the same generic centered hero + three cards + CTA footer layout. Avoid the default blue/purple/indigo SaaS gradient unless those colors are in the mandatory palette.',
+      'Do NOT use #172033, #a05a1c, #f7f2ea, or the same navy/orange fallback palette unless those exact colors appear in the mandatory palette.',
+      'Use a client-specific layout: change nav style, hero shape, section order, background treatments, card shape, borders, and CTA placement based on the business.',
       'If brand_profile.logo_url exists, use it as a visible logo in the header/hero with an absolute image URL. This is the only external image allowed.',
-      'If brand_profile.detected_colors has colors, build the CSS palette around those colors. If not, create a unique palette that fits the business type.',
-      'Create a distinctive layout treatment that fits the business: for example cafe warmth, automotive grit, beauty/luxury softness, professional services trust, or retail energy.',
-      'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer.',
+      'If there is no logo, create a distinctive text-based wordmark using CSS only.',
+      'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer, but vary their visual structure and order.',
       'Do not include external JavaScript, tracking scripts, remote fonts, or external images except the provided logo URL.',
-      'Use CSS gradients, shapes, cards, spacing, and typography to make the demo look premium even without photos.',
+      'Use CSS gradients, shapes, cards, spacing, typography, pseudo-elements, and responsive layout to make the demo look premium even without photos.',
+      'The CSS must be specific to this business. Include CSS custom properties for palette colors and a short comment naming the design direction.',
       'sources must be an array of objects with title, link, snippet from the sources used.',
     ],
   }
@@ -338,7 +442,7 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) return null
 
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-flash'
+  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash'
   const prompt = buildAiPrompt(prospect, research, sources)
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -351,7 +455,7 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
           parts: [
             {
               text: [
-                'You are a careful website strategist creating safe, high-converting demo website copy for local businesses.',
+                'You are a senior brand-aware web designer and front-end developer. Return JSON only with fully custom HTML and CSS.',
                 'Return JSON only. Do not wrap the response in markdown.',
                 JSON.stringify(prompt),
               ].join('\n\n'),
@@ -360,7 +464,8 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
         },
       ],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 1.0,
+        topP: 0.95,
         responseMimeType: 'application/json',
       },
     }),
@@ -393,7 +498,7 @@ async function generateWithOpenAI(prospect: Prospect, research: Record<string, u
     body: JSON.stringify({
       model: Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini',
       input: [
-        { role: 'system', content: 'You are a careful website strategist creating safe, high-converting demo website copy for local businesses.' },
+        { role: 'system', content: 'You are a senior brand-aware web designer and front-end developer. Return JSON only with fully custom HTML and CSS.' },
         { role: 'user', content: JSON.stringify(prompt) },
       ],
       text: { format: { type: 'json_object' } },

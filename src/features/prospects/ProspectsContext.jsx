@@ -284,7 +284,7 @@ export function ProspectsProvider({ children }) {
         demo_site_html: generated.designed_site?.html || '',
         demo_site_css: generated.designed_site?.css || '',
         demo_design_summary: generated.designed_site?.summary || generated.design_notes || '',
-        demo_style: generated.designed_site?.style_direction || 'Modern clean',
+        demo_style: generated.designed_site?.style_direction || generated.brand_profile?.design_direction || 'Modern clean',
         brand_logo_url: generated.brand_profile?.logo_url || prospect.brand_logo_url || '',
         brand_profile: generated.brand_profile || null,
       })
@@ -315,7 +315,7 @@ export function ProspectsProvider({ children }) {
       demo_site_html: generated?.designed_site?.html || '',
       demo_site_css: generated?.designed_site?.css || '',
       demo_design_summary: generated?.designed_site?.summary || generated?.design_notes || '',
-      demo_style: generated?.designed_site?.style_direction || '',
+      demo_style: generated?.designed_site?.style_direction || generated?.brand_profile?.design_direction || data.research?.brand_profile?.design_direction || '',
       brand_logo_url: generated?.brand_profile?.logo_url || data.research?.brand_profile?.logo_url || prospect.brand_logo_url || '',
       brand_profile: generated?.brand_profile || data.research?.brand_profile || null,
     })

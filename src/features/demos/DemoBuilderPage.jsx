@@ -295,10 +295,10 @@ export function DemoBuilderPage() {
                 <div>
                   <p className="eyebrow">Brand profile</p>
                   <h3>{selected.demo_style || 'Brand-aware design'}</h3>
-                  <p>AI will use the logo and detected brand cues to avoid generating the same theme for every prospect.</p>
-                  {selected.brand_profile?.detected_colors?.length ? (
+                  <p>AI will use the logo, palette, and design direction to create a custom page instead of reusing the same theme.</p>
+                  {(selected.brand_profile?.brand_palette?.length || selected.brand_profile?.detected_colors?.length) ? (
                     <div className="color-chip-row">
-                      {selected.brand_profile.detected_colors.map((color) => (
+                      {(selected.brand_profile.brand_palette || selected.brand_profile.detected_colors).map((color) => (
                         <span key={color} className="color-chip"><i style={{ background: color }} />{color}</span>
                       ))}
                     </div>
