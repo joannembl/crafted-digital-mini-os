@@ -27,6 +27,42 @@ export function DemoBuilderPage() {
   const [checkingLive, setCheckingLive] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [creativeDraft, setCreativeDraft] = useState({
+    business_context: '',
+    creative_direction: '',
+    style_inspiration: '',
+  })
+
+  useEffect(() => {
+    if (!selected) {
+      setCreativeDraft({ business_context: '', creative_direction: '', style_inspiration: '' })
+      return
+    }
+    setCreativeDraft({
+      business_context: selected.business_context || '',
+      creative_direction: selected.creative_direction || '',
+      style_inspiration: selected.style_inspiration || '',
+    })
+  }, [selected?.id])
+
+  const isCreativeDraftDirty = Boolean(selected) && (
+    creativeDraft.business_context !== (selected.business_context || '') ||
+    creativeDraft.creative_direction !== (selected.creative_direction || '') ||
+    creativeDraft.style_inspiration !== (selected.style_inspiration || '')
+  )
+
+  async function saveCreativeDraft(message = 'Creative brief saved') {
+    if (!selected) return { error: new Error('No prospect selected') }
+    const result = await patch({
+      business_context: creativeDraft.business_context,
+      creative_direction: creativeDraft.creative_direction,
+      style_inspiration: creativeDraft.style_inspiration,
+    }, message)
+    if (!result?.error) {
+      toast.success(message)
+    }
+    return result
+  }
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -98,7 +134,19 @@ export function DemoBuilderPage() {
     if (!selected) return
     setGeneratingAi(true)
     toast.loading('Creating a custom demo from your business context...', { id: 'ai-demo' })
-    const result = await generateAiDemo(selected.id)
+    if (isCreativeDraftDirty) {
+      const saveResult = await patch({
+        business_context: creativeDraft.business_context,
+        creative_direction: creativeDraft.creative_direction,
+        style_inspiration: creativeDraft.style_inspiration,
+      }, 'Creative brief saved')
+      if (saveResult?.error) {
+        toast.error(saveResult.error.message || 'Unable to save creative brief before generating', { id: 'ai-demo' })
+        setGeneratingAi(false)
+        return
+      }
+    }
+    const result = await generateAiDemo(selected.id, creativeDraft)
     if (!result.error) {
       const provider = result.data?.generation_provider || result.data?.ai_provider
       if (provider === 'fallback') {
@@ -303,25 +351,45 @@ export function DemoBuilderPage() {
               <div className="form-grid compact">
                 <label className="span-2 tall-textarea">Business context paste box
                   <textarea
-                    value={selected.business_context || ''}
-                    onChange={(e) => patch({ business_context: e.target.value })}
+                    value={creativeDraft.business_context}
+                    onChange={(e) => setCreativeDraft((current) => ({ ...current, business_context: e.target.value }))}
                     placeholder={`Paste Google Places info, Facebook/Instagram details, services, hours, reviews summary, menu, photos needed, or anything you want AI to consider for ${selected.business_name}.`}
                   />
                 </label>
                 <label className="span-2">Creative direction
                   <textarea
-                    value={selected.creative_direction || ''}
-                    onChange={(e) => patch({ creative_direction: e.target.value })}
+                    value={creativeDraft.creative_direction}
+                    onChange={(e) => setCreativeDraft((current) => ({ ...current, creative_direction: e.target.value }))}
                     placeholder="Example: Make it feel like a bold custom auto shop site, use a darker premium look, avoid generic SaaS layouts, make it more visual and local."
                   />
                 </label>
                 <label className="span-2">Style inspiration / reference notes
                   <textarea
-                    value={selected.style_inspiration || ''}
-                    onChange={(e) => patch({ style_inspiration: e.target.value })}
+                    value={creativeDraft.style_inspiration}
+                    onChange={(e) => setCreativeDraft((current) => ({ ...current, style_inspiration: e.target.value }))}
                     placeholder="Paste design inspiration, competitor links, logo notes, colors to avoid/use, or describe the vibe you want."
                   />
                 </label>
+              </div>
+              <div className="card-footer-actions">
+                {isCreativeDraftDirty ? <span className="muted-text">Unsaved creative brief changes</span> : <span className="muted-text">Creative brief saved</span>}
+                <div className="button-cluster">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={!isCreativeDraftDirty}
+                    onClick={() => setCreativeDraft({
+                      business_context: selected.business_context || '',
+                      creative_direction: selected.creative_direction || '',
+                      style_inspiration: selected.style_inspiration || '',
+                    })}
+                  >
+                    Discard
+                  </button>
+                  <button className="primary-button" type="button" disabled={!isCreativeDraftDirty} onClick={() => saveCreativeDraft()}>
+                    Save creative brief
+                  </button>
+                </div>
               </div>
             </section>
 

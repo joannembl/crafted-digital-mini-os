@@ -1553,3 +1553,43 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     flex-direction: column;
   }
 }
+
+/* Phase 12.1 Demo Studio textarea stability */
+.card-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(31, 33, 28, 0.08);
+}
+
+.button-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.muted-text {
+  color: var(--muted-text, #777268);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .card-footer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .button-cluster {
+    justify-content: stretch;
+  }
+
+  .button-cluster .primary-button,
+  .button-cluster .secondary-button {
+    flex: 1;
+  }
+}

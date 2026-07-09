@@ -327,9 +327,10 @@ export function ProspectsProvider({ children }) {
     return { data: data.business, error: null }
   }
 
-  async function generateAiDemo(prospectId) {
-    const prospect = prospects.find((item) => item.id === prospectId)
-    if (!prospect) return { error: new Error('Prospect not found') }
+  async function generateAiDemo(prospectId, prospectOverrides = {}) {
+    const baseProspect = prospects.find((item) => item.id === prospectId)
+    if (!baseProspect) return { error: new Error('Prospect not found') }
+    const prospect = { ...baseProspect, ...prospectOverrides }
 
     if (!isSupabaseConfigured) {
       const generated = {
