@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw } from 'lucide-react'
+import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useProspects } from '../prospects/ProspectsContext'
@@ -16,7 +16,7 @@ function deploymentLabel(status) {
 }
 
 export function DemoBuilderPage() {
-  const { prospects, updateProspect, addActivity, generateDemoPlan, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
+  const { prospects, updateProspect, addActivity, clearDemo, generateDemoPlan, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
   const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
   const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
@@ -111,6 +111,20 @@ export function DemoBuilderPage() {
       toast.error(result.error.message || 'Unable to generate AI-designed demo', { id: 'ai-demo' })
     }
     setGeneratingAi(false)
+  }
+
+  async function handleClearDemo() {
+    if (!selected) return
+    const confirmed = window.confirm('Clear demo fields for this prospect? This removes preview URL, AI-generated HTML/CSS, research summary, and publishing status. It does not delete GitHub Pages files yet.')
+    if (!confirmed) return
+    const result = await clearDemo(selected.id)
+    if (!result.error) {
+      toast.success('Demo fields cleared')
+      setSaved('Demo cleared')
+      window.setTimeout(() => setSaved(''), 1400)
+    } else {
+      toast.error(result.error.message || 'Unable to clear demo fields')
+    }
   }
 
   async function deployDemoSite() {
@@ -338,6 +352,9 @@ export function DemoBuilderPage() {
               </button>
               <button className="secondary-button" type="button" onClick={() => runAction(markDemoSent, 'Demo marked sent')}>
                 <Send size={16} /> Mark Sent + Follow Up
+              </button>
+              <button className="danger-button" type="button" onClick={handleClearDemo}>
+                <RotateCcw size={16} /> Clear demo
               </button>
             </div>
 

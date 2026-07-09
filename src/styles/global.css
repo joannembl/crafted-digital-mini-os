@@ -834,3 +834,51 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 9.7 delete and cleanup controls */
+.danger-button {
+  border: 1px solid #efb4a8;
+  border-radius: 14px;
+  padding: 13px 16px;
+  background: #fff5f2;
+  color: #9f2418;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.danger-button:hover {
+  border-color: #d44331;
+  background: #ffe8e3;
+}
+.icon-danger-button {
+  border: 1px solid #efb4a8;
+  border-radius: 999px;
+  background: #fff5f2;
+  color: #9f2418;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.icon-danger-button:hover {
+  border-color: #d44331;
+  background: #ffe8e3;
+}
+.danger-zone {
+  border-color: #efb4a8;
+  background: #fffaf8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.danger-zone p { margin-bottom: 0; }
+.timeline-item div { grid-template-columns: auto 1fr auto; }
+@media (max-width: 700px) {
+  .danger-zone { align-items: stretch; flex-direction: column; }
+  .danger-zone .danger-button { width: 100%; }
+}

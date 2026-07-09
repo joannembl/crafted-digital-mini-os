@@ -1,5 +1,5 @@
-import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Save, Send } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, RotateCcw, Save, Send, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { slugify, useProspects } from './ProspectsContext'
@@ -7,7 +7,8 @@ import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 export function ProspectWorkspacePage() {
   const { slug } = useParams()
-  const { prospects, activities, updateProspect, addActivity, markDemoReady, markDemoSent, convertToClient, generateProposal, markProposalSent, slugForProspect } = useProspects()
+  const navigate = useNavigate()
+  const { prospects, activities, updateProspect, addActivity, deleteActivity, clearDemo, clearClientDetails, deleteProspect, markDemoReady, markDemoSent, convertToClient, generateProposal, markProposalSent, slugForProspect } = useProspects()
   const prospect = prospects.find((item) => item.id === slug || item.slug === slug || slugify(item.business_name) === slug)
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
@@ -108,6 +109,46 @@ export function ProspectWorkspacePage() {
     }
   }
 
+
+  async function handleDeleteActivity(activity) {
+    const confirmed = window.confirm(`Delete this ${activity.type.toLowerCase()} note? This cannot be undone.`)
+    if (!confirmed) return
+    const result = await deleteActivity(activity.id)
+    if (!result.error) toast.success('Activity deleted')
+    else toast.error(result.error.message || 'Unable to delete activity')
+  }
+
+  async function handleClearDemo() {
+    const confirmed = window.confirm('Clear this demo workflow? This removes generated copy, AI HTML/CSS, research, preview URL, and publishing status. It does not delete files already pushed to GitHub Pages.')
+    if (!confirmed) return
+    const result = await clearDemo(prospect.id)
+    if (!result.error) toast.success('Demo fields cleared')
+    else toast.error(result.error.message || 'Unable to clear demo fields')
+  }
+
+  async function handleClearClientDetails() {
+    const confirmed = window.confirm('Clear client details and move this record back to proposal?')
+    if (!confirmed) return
+    const result = await clearClientDetails(prospect.id)
+    if (!result.error) toast.success('Client details cleared')
+    else toast.error(result.error.message || 'Unable to clear client details')
+  }
+
+  async function handleDeleteProspect() {
+    const typed = window.prompt(`Type "${prospect.business_name}" to permanently delete this prospect and its notes.`)
+    if (typed !== prospect.business_name) {
+      if (typed !== null) toast.error('Business name did not match. Prospect was not deleted.')
+      return
+    }
+    const result = await deleteProspect(prospect.id)
+    if (!result.error) {
+      toast.success('Prospect deleted')
+      navigate('/prospects')
+    } else {
+      toast.error(result.error.message || 'Unable to delete prospect')
+    }
+  }
+
   return (
     <div className="page-stack">
       <header className="page-header">
@@ -161,6 +202,7 @@ export function ProspectWorkspacePage() {
             <label>Live URL<input value={prospect.live_url || ''} onChange={(e) => patch({ live_url: e.target.value })} placeholder="https://clientsite.com" /></label>
             <label>Client notes<textarea value={clientNotesDraft} onChange={(e) => setClientNotesDraft(e.target.value)} onBlur={saveClientNotes} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
             <button className="secondary-button full-width" type="button" onClick={saveClientNotes}>Save Client Notes</button>
+            {(prospect.converted_at || prospect.status === 'won') && <button className="danger-button full-width" type="button" onClick={handleClearClientDetails}><RotateCcw size={16} /> Clear client details</button>}
           </div>
           )}
         </section>
@@ -196,6 +238,7 @@ export function ProspectWorkspacePage() {
             {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
             <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
             <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
+            <button className="danger-button full-width" type="button" onClick={handleClearDemo}><RotateCcw size={16} /> Clear demo fields</button>
           </div>
           )}
         </section>
@@ -216,13 +259,26 @@ export function ProspectWorkspacePage() {
         <div className="timeline">
           {prospectActivities.length === 0 ? <p>No activity yet.</p> : prospectActivities.map((activity) => (
             <article className="timeline-item" key={activity.id}>
-              <div><strong>{activity.type}</strong><span>{new Date(activity.created_at).toLocaleString()}</span></div>
+              <div>
+                <strong>{activity.type}</strong>
+                <span>{new Date(activity.created_at).toLocaleString()}</span>
+                <button className="icon-danger-button" type="button" onClick={() => handleDeleteActivity(activity)} aria-label={`Delete ${activity.type} activity`}><Trash2 size={15} /></button>
+              </div>
               <p>{activity.note}</p>
             </article>
           ))}
         </div>
         </>
         )}
+      </section>
+
+      <section className="panel danger-zone">
+        <div>
+          <p className="eyebrow">Danger zone</p>
+          <h2>Delete prospect</h2>
+          <p>Deletes this prospect and its saved activities/research from the OS. GitHub Pages demo files are not deleted yet.</p>
+        </div>
+        <button className="danger-button" type="button" onClick={handleDeleteProspect}><Trash2 size={16} /> Delete prospect</button>
       </section>
     </div>
   )

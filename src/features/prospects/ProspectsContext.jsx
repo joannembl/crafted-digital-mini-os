@@ -461,6 +461,92 @@ export function ProspectsProvider({ children }) {
   }
 
 
+
+  async function deleteActivity(activityId) {
+    const activity = activities.find((item) => item.id === activityId)
+    if (!activity) return { error: new Error('Activity not found') }
+
+    if (!isSupabaseConfigured) {
+      const nextActivities = activities.filter((item) => item.id !== activityId)
+      persistLocal(prospects, nextActivities)
+      return { data: activity, error: null }
+    }
+
+    const { error } = await supabase.from('activities').delete().eq('id', activityId)
+    if (!error) setActivities((current) => current.filter((item) => item.id !== activityId))
+    return { data: activity, error }
+  }
+
+  async function clearDemo(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    const clearedValues = {
+      demo_status: 'not_started',
+      deployment_status: 'idle',
+      deployment_checked_at: null,
+      preview_url: '',
+      live_url: prospect.status === 'won' ? prospect.live_url : '',
+      demo_brief: '',
+      demo_copy: '',
+      demo_notes: '',
+      demo_last_sent: null,
+      ai_research_summary: '',
+      ai_source_links: '',
+      ai_generated_at: null,
+      demo_site_html: '',
+      demo_site_css: '',
+      demo_design_summary: '',
+      demo_style: '',
+      brand_profile: null,
+      generation_provider: '',
+      generation_error: '',
+    }
+
+    const result = await updateProspect(prospectId, clearedValues)
+
+    if (!result.error && isSupabaseConfigured) {
+      await supabase.from('business_research').delete().eq('prospect_id', prospectId)
+    }
+
+    if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Cleared demo, AI generation, deployment, and research fields.' })
+    return result
+  }
+
+  async function clearClientDetails(prospectId) {
+    const result = await updateProspect(prospectId, {
+      status: 'proposal',
+      package_type: '',
+      monthly_price: null,
+      setup_fee: null,
+      add_ons: '',
+      client_notes: '',
+      converted_at: null,
+      proposal_status: 'drafted',
+    })
+    if (!result.error) await addActivity(prospectId, { type: 'Client', note: 'Cleared client details and moved prospect back to proposal.' })
+    return result
+  }
+
+  async function deleteProspect(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    if (!isSupabaseConfigured) {
+      const nextProspects = prospects.filter((item) => item.id !== prospectId)
+      const nextActivities = activities.filter((item) => item.prospect_id !== prospectId)
+      persistLocal(nextProspects, nextActivities)
+      return { data: prospect, error: null }
+    }
+
+    const { error } = await supabase.from('prospects').delete().eq('id', prospectId)
+    if (!error) {
+      setProspects((current) => current.filter((item) => item.id !== prospectId))
+      setActivities((current) => current.filter((item) => item.prospect_id !== prospectId))
+    }
+    return { data: prospect, error }
+  }
+
   async function completeFollowUp(prospectId, note = '') {
     const cleanNote = note?.trim()
     const result = await updateProspect(prospectId, { next_follow_up: null })
@@ -488,6 +574,10 @@ export function ProspectsProvider({ children }) {
     createProspect,
     updateProspect,
     addActivity,
+    deleteActivity,
+    clearDemo,
+    clearClientDetails,
+    deleteProspect,
     generateDemoPlan,
     generateAiDemo,
     markDemoReady,
