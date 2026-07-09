@@ -46,7 +46,9 @@ function buildSiteHtml(prospect: Record<string, unknown>) {
   const phone = String(prospect.phone || '')
   const email = String(prospect.email || '')
   const instagram = String(prospect.instagram || '')
+  const facebook = String(prospect.facebook || '')
   const website = String(prospect.website || '')
+  const address = String(prospect.address || '')
   const brandProfile = prospect.brand_profile && typeof prospect.brand_profile === 'object' ? prospect.brand_profile as Record<string, unknown> : {}
   const logoUrl = String(prospect.brand_logo_url || brandProfile.logo_url || '')
   const demoCopy = String(prospect.demo_copy || '')
@@ -128,7 +130,9 @@ function buildSiteHtml(prospect: Record<string, unknown>) {
         ${phone ? `<p>Phone: <a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a></p>` : ''}
         ${email ? `<p>Email: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>` : ''}
         ${instagram ? `<p>Instagram: ${escapeHtml(instagram)}</p>` : ''}
+        ${facebook ? `<p>Facebook: ${escapeHtml(facebook)}</p>` : ''}
         ${website ? `<p>Current website: ${escapeHtml(website)}</p>` : ''}
+        ${address ? `<p>Address: ${escapeHtml(address)}</p>` : ''}
       </div>
     </section>
   </main>

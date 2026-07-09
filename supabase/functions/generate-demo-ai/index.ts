@@ -252,10 +252,12 @@ async function lookupGooglePlace(prospect: Prospect) {
   const query = [
     prospect.business_name,
     prospect.category,
+    prospect.address,
     prospect.city,
     prospect.state,
     prospect.website,
     prospect.instagram,
+    prospect.facebook,
   ].filter(Boolean).join(' ')
 
   const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
@@ -436,6 +438,8 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       email: prospect.email,
       website: prospect.website,
       instagram: prospect.instagram,
+      facebook: prospect.facebook,
+      address: prospect.address,
       notes: prospect.notes,
       demo_notes: prospect.demo_notes,
       style_direction: styleDirection,
