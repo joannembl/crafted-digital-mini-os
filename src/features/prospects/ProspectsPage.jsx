@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Plus, Search, Sparkles } from 'lucide-react'
+import { FilterX, Plus, Search, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -17,6 +17,12 @@ function hasProspectFormChanges(form) {
 export function ProspectsPage() {
   const { prospects, createProspect, importBusinessFromGooglePlaces, loading, error, slugForProspect } = useProspects()
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [demoStatusFilter, setDemoStatusFilter] = useState('all')
+  const [followUpFilter, setFollowUpFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [previewFilter, setPreviewFilter] = useState('all')
+  const [websiteFilter, setWebsiteFilter] = useState('all')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(createEmptyForm)
   const [importing, setImporting] = useState(false)
@@ -77,10 +83,77 @@ export function ProspectsPage() {
     closeAddProspectForm()
   }
 
+  const todayKey = new Date().toISOString().slice(0, 10)
+
+  const categoryOptions = useMemo(() => {
+    const categories = prospects
+      .map((prospect) => prospect.category?.trim())
+      .filter(Boolean)
+      .filter((category, index, all) => all.findIndex((item) => item.toLowerCase() === category.toLowerCase()) === index)
+      .sort((a, b) => a.localeCompare(b))
+
+    return categories
+  }, [prospects])
+
+  const hasActiveFilters = Boolean(
+    query ||
+    statusFilter !== 'all' ||
+    demoStatusFilter !== 'all' ||
+    followUpFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    previewFilter !== 'all' ||
+    websiteFilter !== 'all'
+  )
+
+  function clearFilters() {
+    setQuery('')
+    setStatusFilter('all')
+    setDemoStatusFilter('all')
+    setFollowUpFilter('all')
+    setCategoryFilter('all')
+    setPreviewFilter('all')
+    setWebsiteFilter('all')
+  }
+
+  function matchesFollowUpFilter(prospect) {
+    const followUp = prospect.next_follow_up
+
+    if (followUpFilter === 'all') return true
+    if (followUpFilter === 'none') return !followUp
+    if (!followUp) return false
+    if (followUpFilter === 'overdue') return followUp < todayKey
+    if (followUpFilter === 'today') return followUp === todayKey
+    if (followUpFilter === 'upcoming') return followUp > todayKey
+
+    return true
+  }
+
   const filtered = useMemo(() => {
-    const q = query.toLowerCase()
-    return prospects.filter((prospect) => [prospect.business_name, prospect.owner_name, prospect.category, prospect.address, prospect.instagram, prospect.facebook].join(' ').toLowerCase().includes(q))
-  }, [prospects, query])
+    const q = query.trim().toLowerCase()
+
+    return prospects.filter((prospect) => {
+      const searchable = [
+        prospect.business_name,
+        prospect.owner_name,
+        prospect.category,
+        prospect.address,
+        prospect.instagram,
+        prospect.facebook,
+        prospect.website,
+        prospect.phone,
+        prospect.email,
+      ].join(' ').toLowerCase()
+
+      const matchesSearch = !q || searchable.includes(q)
+      const matchesStatus = statusFilter === 'all' || prospect.status === statusFilter
+      const matchesDemoStatus = demoStatusFilter === 'all' || prospect.demo_status === demoStatusFilter
+      const matchesCategory = categoryFilter === 'all' || prospect.category?.toLowerCase() === categoryFilter.toLowerCase()
+      const matchesPreview = previewFilter === 'all' || (previewFilter === 'yes' ? Boolean(prospect.preview_url) : !prospect.preview_url)
+      const matchesWebsite = websiteFilter === 'all' || (websiteFilter === 'yes' ? Boolean(prospect.website) : !prospect.website)
+
+      return matchesSearch && matchesStatus && matchesDemoStatus && matchesCategory && matchesFollowUpFilter(prospect) && matchesPreview && matchesWebsite
+    })
+  }, [prospects, query, statusFilter, demoStatusFilter, categoryFilter, followUpFilter, previewFilter, websiteFilter, todayKey])
 
 
   async function handleImportFromGooglePlaces() {
@@ -183,9 +256,64 @@ export function ProspectsPage() {
       />
 
       <section className="panel">
-        <div className="toolbar">
+        <div className="toolbar prospect-toolbar">
           <div className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search prospects..." /></div>
-          <span>{filtered.length} prospects</span>
+          <span>{filtered.length} of {prospects.length} prospects</span>
+        </div>
+
+        <div className="filter-grid" aria-label="Prospect filters">
+          <label>Status
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">All statuses</option>
+              {prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+            </select>
+          </label>
+
+          <label>Demo status
+            <select value={demoStatusFilter} onChange={(event) => setDemoStatusFilter(event.target.value)}>
+              <option value="all">All demo statuses</option>
+              {demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+            </select>
+          </label>
+
+          <label>Follow-up
+            <select value={followUpFilter} onChange={(event) => setFollowUpFilter(event.target.value)}>
+              <option value="all">All follow-ups</option>
+              <option value="overdue">Overdue</option>
+              <option value="today">Due today</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="none">No follow-up</option>
+            </select>
+          </label>
+
+          <label>Category
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              <option value="all">All categories</option>
+              {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </label>
+
+          <label>Preview URL
+            <select value={previewFilter} onChange={(event) => setPreviewFilter(event.target.value)}>
+              <option value="all">Any</option>
+              <option value="yes">Has preview</option>
+              <option value="no">No preview</option>
+            </select>
+          </label>
+
+          <label>Website
+            <select value={websiteFilter} onChange={(event) => setWebsiteFilter(event.target.value)}>
+              <option value="all">Any</option>
+              <option value="yes">Has website</option>
+              <option value="no">No website</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="filter-actions">
+          <button className="secondary-button" type="button" onClick={clearFilters} disabled={!hasActiveFilters}>
+            <FilterX size={16} /> Clear filters
+          </button>
         </div>
 
         {loading ? <p>Loading prospects…</p> : filtered.length === 0 ? (

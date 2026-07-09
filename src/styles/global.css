@@ -1593,3 +1593,59 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     flex: 1;
   }
 }
+
+.prospect-toolbar {
+  margin-bottom: 14px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #e7e1d4;
+  border-radius: 20px;
+  background: #fbfaf7;
+}
+
+.filter-grid label {
+  font-size: .78rem;
+  color: #6b6f65;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.filter-grid select {
+  width: 100%;
+  margin-top: 2px;
+  color: #1f211c;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
+.filter-actions .secondary-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    justify-content: stretch;
+  }
+
+  .filter-actions .secondary-button {
+    width: 100%;
+  }
+}
