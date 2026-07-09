@@ -1,4 +1,4 @@
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Globe2, MapPin, MessageSquareText, RotateCcw, Save, Send, Sparkles, Trash2, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEffect, useMemo, useState } from 'react'
@@ -14,6 +14,61 @@ function FacebookMark({ size = 15 }) {
   return <span className="platform-mark" style={{ fontSize: `${Math.max(12, size - 1)}px` }}>FB</span>
 }
 
+function normalized(value) {
+  return value === undefined || value === null ? '' : value
+}
+
+function draftSnapshot(value) {
+  return JSON.stringify(value || {})
+}
+
+function createOverviewDraft(prospect) {
+  return {
+    owner_name: prospect?.owner_name || '',
+    category: prospect?.category || '',
+    phone: prospect?.phone || '',
+    email: prospect?.email || '',
+    website: prospect?.website || '',
+    instagram: prospect?.instagram || '',
+    facebook: prospect?.facebook || '',
+    address: prospect?.address || '',
+    google_place_id: prospect?.google_place_id || '',
+    google_maps_url: prospect?.google_maps_url || '',
+    google_rating: prospect?.google_rating ?? null,
+    google_review_count: prospect?.google_review_count ?? null,
+    google_types: prospect?.google_types || [],
+    google_opening_hours: prospect?.google_opening_hours || [],
+    google_imported_at: prospect?.google_imported_at || null,
+    status: prospect?.status || 'research',
+    next_follow_up: prospect?.next_follow_up || '',
+    notes: prospect?.notes || '',
+  }
+}
+
+function createDemoDraft(prospect) {
+  return {
+    demo_status: prospect?.demo_status || 'not_started',
+    preview_url: prospect?.preview_url || '',
+  }
+}
+
+function createClientDraft(prospect) {
+  return {
+    package_type: prospect?.package_type || '',
+    monthly_price: normalized(prospect?.monthly_price),
+    setup_fee: normalized(prospect?.setup_fee),
+    add_ons: prospect?.add_ons || '',
+    live_url: prospect?.live_url || '',
+    client_notes: prospect?.client_notes || '',
+  }
+}
+
+function createProposalDraft(prospect) {
+  return {
+    proposal_status: prospect?.proposal_status || 'not_started',
+  }
+}
+
 export function ProspectWorkspacePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -23,7 +78,9 @@ export function ProspectWorkspacePage() {
   const [activityType, setActivityType] = useState('Note')
   const [saved, setSaved] = useState(false)
   const [overviewDraft, setOverviewDraft] = useState({})
-  const [clientNotesDraft, setClientNotesDraft] = useState('')
+  const [demoDraft, setDemoDraft] = useState({})
+  const [clientDraft, setClientDraft] = useState({})
+  const [proposalDraft, setProposalDraft] = useState({})
   const [collapsedSections, setCollapsedSections] = useState({
     clientDetails: false,
     proposal: false,
@@ -31,33 +88,36 @@ export function ProspectWorkspacePage() {
     activityNotes: false,
   })
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [unsavedDialog, setUnsavedDialog] = useState(null)
   const [importingBusiness, setImportingBusiness] = useState(false)
 
   const prospectActivities = useMemo(() => activities.filter((activity) => activity.prospect_id === prospect?.id), [activities, prospect?.id])
+  const overviewDirty = prospect ? draftSnapshot(overviewDraft) !== draftSnapshot(createOverviewDraft(prospect)) : false
+  const demoDirty = prospect ? draftSnapshot(demoDraft) !== draftSnapshot(createDemoDraft(prospect)) : false
+  const clientDirty = prospect ? draftSnapshot(clientDraft) !== draftSnapshot(createClientDraft(prospect)) : false
+  const proposalDirty = prospect ? draftSnapshot(proposalDraft) !== draftSnapshot(createProposalDraft(prospect)) : false
+  const activityDirty = Boolean(note.trim())
+  const hasUnsavedChanges = overviewDirty || demoDirty || clientDirty || proposalDirty || activityDirty
 
   useEffect(() => {
-    setOverviewDraft({
-      owner_name: prospect?.owner_name || '',
-      category: prospect?.category || '',
-      phone: prospect?.phone || '',
-      email: prospect?.email || '',
-      website: prospect?.website || '',
-      instagram: prospect?.instagram || '',
-      facebook: prospect?.facebook || '',
-      address: prospect?.address || '',
-      google_place_id: prospect?.google_place_id || '',
-      google_maps_url: prospect?.google_maps_url || '',
-      google_rating: prospect?.google_rating ?? null,
-      google_review_count: prospect?.google_review_count ?? null,
-      google_types: prospect?.google_types || [],
-      google_opening_hours: prospect?.google_opening_hours || [],
-      google_imported_at: prospect?.google_imported_at || null,
-      status: prospect?.status || 'research',
-      next_follow_up: prospect?.next_follow_up || '',
-      notes: prospect?.notes || '',
-    })
-    setClientNotesDraft(prospect?.client_notes || '')
+    setOverviewDraft(createOverviewDraft(prospect))
+    setDemoDraft(createDemoDraft(prospect))
+    setClientDraft(createClientDraft(prospect))
+    setProposalDraft(createProposalDraft(prospect))
+    setNote('')
   }, [prospect?.id])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+
+    function handleBeforeUnload(event) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
 
   if (!prospect) return <Navigate to="/prospects" replace />
 
@@ -73,6 +133,85 @@ export function ProspectWorkspacePage() {
 
   function updateOverviewDraft(field, value) {
     setOverviewDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateDemoDraft(field, value) {
+    setDemoDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateClientDraft(field, value) {
+    setClientDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateProposalDraft(field, value) {
+    setProposalDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function openUnsavedDialog(config) {
+    setUnsavedDialog(config)
+  }
+
+  function closeUnsavedDialog() {
+    setUnsavedDialog(null)
+  }
+
+  function handleBackToProspects() {
+    if (!hasUnsavedChanges) {
+      navigate('/prospects')
+      return
+    }
+
+    openUnsavedDialog({
+      title: 'Leave with unsaved changes?',
+      message: 'You have unsaved changes in this workspace. Leaving now will discard anything you have not saved.',
+      confirmLabel: 'Discard and leave',
+      onConfirm: () => {
+        closeUnsavedDialog()
+        navigate('/prospects')
+      },
+    })
+  }
+
+  function guardedNavigate(path) {
+    if (!hasUnsavedChanges) {
+      navigate(path)
+      return
+    }
+
+    openUnsavedDialog({
+      title: 'Leave with unsaved changes?',
+      message: 'Save or discard your changes before leaving this workspace.',
+      confirmLabel: 'Discard and continue',
+      onConfirm: () => {
+        closeUnsavedDialog()
+        navigate(path)
+      },
+    })
+  }
+
+  function discardSection(section) {
+    const sectionLabels = {
+      overview: 'overview changes',
+      demo: 'demo tracker changes',
+      client: 'client detail changes',
+      proposal: 'proposal changes',
+      activity: 'unsaved activity note',
+    }
+
+    openUnsavedDialog({
+      title: `Discard ${sectionLabels[section] || 'changes'}?`,
+      message: 'This resets the unsaved edits in this section back to the last saved version.',
+      confirmLabel: 'Discard changes',
+      onConfirm: () => {
+        if (section === 'overview') setOverviewDraft(createOverviewDraft(prospect))
+        if (section === 'demo') setDemoDraft(createDemoDraft(prospect))
+        if (section === 'client') setClientDraft(createClientDraft(prospect))
+        if (section === 'proposal') setProposalDraft(createProposalDraft(prospect))
+        if (section === 'activity') setNote('')
+        closeUnsavedDialog()
+        toast.success('Unsaved changes discarded')
+      },
+    })
   }
 
   function toggleSection(section) {
@@ -185,10 +324,38 @@ export function ProspectWorkspacePage() {
     else toast.error(result.error.message || 'Unable to save changes')
   }
 
-  async function saveClientNotes() {
-    if ((prospect.client_notes || '') === clientNotesDraft) return
-    const result = await patch({ client_notes: clientNotesDraft })
-    if (!result?.error) toast.success('Client notes saved')
+  async function saveDemoChanges({ silent = false } = {}) {
+    if (!demoDirty) return { error: null }
+    const result = await patch({
+      demo_status: demoDraft.demo_status || 'not_started',
+      preview_url: demoDraft.preview_url || null,
+    })
+    if (!result?.error && !silent) toast.success('Demo tracker saved')
+    if (result?.error && !silent) toast.error(result.error.message || 'Unable to save demo tracker')
+    return result
+  }
+
+  async function saveClientDetails() {
+    if (!clientDirty) return { error: null }
+    const result = await patch({
+      package_type: clientDraft.package_type || null,
+      monthly_price: clientDraft.monthly_price === '' || clientDraft.monthly_price == null ? null : Number(clientDraft.monthly_price),
+      setup_fee: clientDraft.setup_fee === '' || clientDraft.setup_fee == null ? null : Number(clientDraft.setup_fee),
+      add_ons: clientDraft.add_ons || null,
+      live_url: clientDraft.live_url || null,
+      client_notes: clientDraft.client_notes || null,
+    })
+    if (!result?.error) toast.success('Client details saved')
+    else toast.error(result.error.message || 'Unable to save client details')
+    return result
+  }
+
+  async function saveProposalChanges() {
+    if (!proposalDirty) return { error: null }
+    const result = await patch({ proposal_status: proposalDraft.proposal_status || 'not_started' })
+    if (!result?.error) toast.success('Proposal saved')
+    else toast.error(result.error.message || 'Unable to save proposal')
+    return result
   }
 
   async function handleActivity(event) {
@@ -291,7 +458,7 @@ export function ProspectWorkspacePage() {
     <div className="page-stack prospect-workspace-page">
       <header className="page-header workspace-page-header">
         <div>
-          <Link className="back-link" to="/prospects"><ArrowLeft size={16} /> Back to prospects</Link>
+          <button className="back-link button-link" type="button" onClick={handleBackToProspects}><ArrowLeft size={16} /> Back to prospects</button>
           <p className="eyebrow">Prospect Workspace</p>
           <h1>{prospect.business_name}</h1>
           <div className="workspace-meta-row">
@@ -301,7 +468,10 @@ export function ProspectWorkspacePage() {
           </div>
           <p className="muted-text">Route: /prospects/{slugForProspect(prospect)}</p>
         </div>
-        {saved && <span className="save-pill"><Save size={15} /> Saved</span>}
+        <div className="workspace-header-pills">
+          {hasUnsavedChanges && <span className="unsaved-pill">Unsaved changes</span>}
+          {saved && <span className="save-pill"><Save size={15} /> Saved</span>}
+        </div>
       </header>
 
       <div className="workspace-stage-strip">
@@ -367,7 +537,10 @@ export function ProspectWorkspacePage() {
             <SocialField label="Instagram" field="instagram" icon={InstagramMark} placeholder="https://instagram.com/business" />
             <SocialField label="Facebook" field="facebook" icon={FacebookMark} placeholder="https://facebook.com/business" />
             <label className="span-2">Main notes<textarea value={overviewDraft.notes || ''} onChange={(e) => updateOverviewDraft('notes', e.target.value)} /></label>
-            <div className="workspace-card-footer span-2"><button className="primary-button" type="button" onClick={saveOverviewChanges}>Save changes</button></div>
+            <div className="workspace-card-footer span-2">
+              {overviewDirty && <button className="secondary-button" type="button" onClick={() => discardSection('overview')}>Discard changes</button>}
+              <button className="primary-button" type="button" onClick={saveOverviewChanges} disabled={!overviewDirty}>Save changes</button>
+            </div>
           </div>
         </section>
 
@@ -376,17 +549,19 @@ export function ProspectWorkspacePage() {
           {!collapsedSections.demoTracker && (
           <div className="workspace-section-body demo-tracker-grid">
             <div className="form-stack">
-              <Link className="primary-button full-width" to="/demo-builder">Open Demo Builder</Link>
-              <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
-              <label>Preview URL<input value={prospect.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
+              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate('/demo-builder')}>Open Demo Builder</button>
+              <label>Demo status<select value={demoDraft.demo_status || 'not_started'} onChange={(e) => updateDemoDraft('demo_status', e.target.value)}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+              <label>Preview URL<input value={demoDraft.preview_url || ''} onChange={(e) => updateDemoDraft('preview_url', e.target.value)} placeholder="https://demo.netlify.app" /></label>
             </div>
             <div className="workspace-action-card">
               <h3>Demo actions</h3>
               <p>Use these after generating or manually adding a preview URL.</p>
               <div className="workspace-card-footer stacked">
-                {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
-                <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
+                {demoDraft.preview_url && <a className="secondary-button full-width" href={externalUrl(demoDraft.preview_url)} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
+                <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, demoDraft.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
                 <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
+                {demoDirty && <button className="secondary-button full-width" type="button" onClick={() => discardSection('demo')}>Discard unsaved demo changes</button>}
+                <button className="primary-button full-width" type="button" onClick={() => saveDemoChanges()} disabled={!demoDirty}>Save demo tracker</button>
                 <button className="danger-button full-width" type="button" onClick={handleClearDemo}><RotateCcw size={16} /> Clear demo fields</button>
               </div>
             </div>
@@ -406,7 +581,7 @@ export function ProspectWorkspacePage() {
                 </button>
               )}
               <label>Package
-                <select value={prospect.package_type || ''} onChange={(e) => patch({ package_type: e.target.value })}>
+                <select value={clientDraft.package_type || ''} onChange={(e) => updateClientDraft('package_type', e.target.value)}>
                   <option value="">Select package</option>
                   <option value="Website, Handled">Website, Handled</option>
                   <option value="Build & Own">Build & Own</option>
@@ -414,14 +589,15 @@ export function ProspectWorkspacePage() {
                 </select>
               </label>
               <div className="workspace-mini-grid">
-                <label>Monthly price<input type="number" min="0" value={prospect.monthly_price ?? ''} onChange={(e) => patch({ monthly_price: e.target.value === '' ? null : Number(e.target.value) })} placeholder="99" /></label>
-                <label>Setup fee<input type="number" min="0" value={prospect.setup_fee ?? ''} onChange={(e) => patch({ setup_fee: e.target.value === '' ? null : Number(e.target.value) })} placeholder="99" /></label>
+                <label>Monthly price<input type="number" min="0" value={clientDraft.monthly_price ?? ''} onChange={(e) => updateClientDraft('monthly_price', e.target.value)} placeholder="99" /></label>
+                <label>Setup fee<input type="number" min="0" value={clientDraft.setup_fee ?? ''} onChange={(e) => updateClientDraft('setup_fee', e.target.value)} placeholder="99" /></label>
               </div>
-              <label>Add-ons<input value={prospect.add_ons || ''} onChange={(e) => patch({ add_ons: e.target.value })} placeholder="Booking, contact form, online store" /></label>
-              <label>Live URL<input value={prospect.live_url || ''} onChange={(e) => patch({ live_url: e.target.value })} placeholder="https://clientsite.com" /></label>
-              <label>Client notes<textarea value={clientNotesDraft} onChange={(e) => setClientNotesDraft(e.target.value)} onBlur={saveClientNotes} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
+              <label>Add-ons<input value={clientDraft.add_ons || ''} onChange={(e) => updateClientDraft('add_ons', e.target.value)} placeholder="Booking, contact form, online store" /></label>
+              <label>Live URL<input value={clientDraft.live_url || ''} onChange={(e) => updateClientDraft('live_url', e.target.value)} placeholder="https://clientsite.com" /></label>
+              <label>Client notes<textarea value={clientDraft.client_notes || ''} onChange={(e) => updateClientDraft('client_notes', e.target.value)} placeholder="Billing notes, launch notes, cancellation notes..." /></label>
               <div className="workspace-card-footer">
-                <button className="secondary-button" type="button" onClick={saveClientNotes}>Save client notes</button>
+                {clientDirty && <button className="secondary-button" type="button" onClick={() => discardSection('client')}>Discard changes</button>}
+                <button className="primary-button" type="button" onClick={saveClientDetails} disabled={!clientDirty}>Save client details</button>
                 {(prospect.converted_at || prospect.status === 'won') && <button className="danger-button" type="button" onClick={handleClearClientDetails}><RotateCcw size={16} /> Clear client details</button>}
               </div>
             </div>
@@ -432,9 +608,9 @@ export function ProspectWorkspacePage() {
             <CollapsibleHeader section="proposal" title="Proposal" icon={FileText} description="Draft, send, and follow up on your proposal." />
             {!collapsedSections.proposal && (
             <div className="workspace-section-body form-stack">
-              <Link className="primary-button full-width" to="/proposals"><FileText size={16} /> Open Proposal Center</Link>
+              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate('/proposals')}><FileText size={16} /> Open Proposal Center</button>
               <label>Proposal status
-                <select value={prospect.proposal_status || 'not_started'} onChange={(e) => patch({ proposal_status: e.target.value })}>
+                <select value={proposalDraft.proposal_status || 'not_started'} onChange={(e) => updateProposalDraft('proposal_status', e.target.value)}>
                   <option value="not_started">Not started</option>
                   <option value="drafted">Drafted</option>
                   <option value="sent">Sent</option>
@@ -448,6 +624,8 @@ export function ProspectWorkspacePage() {
                 <p>Use this section to keep proposal status separate from client conversion details.</p>
               </div>
               <div className="workspace-card-footer stacked">
+                {proposalDirty && <button className="secondary-button full-width" type="button" onClick={() => discardSection('proposal')}>Discard proposal changes</button>}
+                <button className="primary-button full-width" type="button" onClick={saveProposalChanges} disabled={!proposalDirty}>Save proposal status</button>
                 <button className="secondary-button full-width" type="button" onClick={() => generateProposal(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to generate proposal') : toast.success('Proposal generated'))}><FileText size={16} /> Generate Proposal</button>
                 <button className="secondary-button full-width" type="button" onClick={() => markProposalSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark proposal sent') : toast.success('Proposal marked sent'))}><Send size={16} /> Mark Sent + Follow Up</button>
               </div>
@@ -465,6 +643,7 @@ export function ProspectWorkspacePage() {
                 {['Note', 'Call', 'Email', 'DM', 'Meeting', 'Demo'].map((type) => <option key={type}>{type}</option>)}
               </select>
               <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a quick note..." />
+              {activityDirty && <button className="secondary-button" type="button" onClick={() => discardSection('activity')}>Discard</button>}
               <button className="primary-button" type="submit">Add Note</button>
             </form>
 
@@ -513,6 +692,16 @@ export function ProspectWorkspacePage() {
         tone="danger"
         onCancel={closeConfirmDialog}
         onConfirm={confirmDialog?.onConfirm}
+      />
+      <ConfirmDialog
+        open={Boolean(unsavedDialog)}
+        title={unsavedDialog?.title}
+        message={unsavedDialog?.message}
+        confirmLabel={unsavedDialog?.confirmLabel || 'Discard changes'}
+        cancelLabel="Keep editing"
+        tone="danger"
+        onCancel={closeUnsavedDialog}
+        onConfirm={unsavedDialog?.onConfirm}
       />
     </div>
   )

@@ -1411,3 +1411,32 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     flex-direction: column;
   }
 }
+
+.button-link {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.workspace-header-pills {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.unsaved-pill {
+  align-items: center;
+  background: #fff6df;
+  border: 1px solid #f0d991;
+  border-radius: 999px;
+  color: #8a5a00;
+  display: inline-flex;
+  font-weight: 900;
+  gap: 7px;
+  padding: 8px 12px;
+}
