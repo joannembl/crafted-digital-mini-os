@@ -54,6 +54,9 @@ create table if not exists public.prospects (
   address text,
   instagram text,
   facebook text,
+  business_context text,
+  creative_direction text,
+  style_inspiration text,
   google_place_id text,
   google_maps_url text,
   google_rating numeric(3,2),
@@ -135,6 +138,9 @@ create table if not exists public.audit_logs (
 alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
 alter table public.prospects add column if not exists facebook text;
+alter table public.prospects add column if not exists business_context text;
+alter table public.prospects add column if not exists creative_direction text;
+alter table public.prospects add column if not exists style_inspiration text;
 alter table public.prospects add column if not exists address text;
 alter table public.prospects add column if not exists google_place_id text;
 alter table public.prospects add column if not exists google_maps_url text;

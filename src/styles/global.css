@@ -1521,3 +1521,35 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     text-align: left;
   }
 }
+
+/* Phase 12 Demo Studio */
+.creative-brief-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 24px;
+  padding: 22px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(20, 184, 166, 0.06)), var(--panel, #fff);
+  margin: 18px 0;
+}
+
+.creative-brief-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.creative-brief-header h3 {
+  margin: 4px 0 6px;
+}
+
+.creative-brief-header p {
+  margin: 0;
+  max-width: 780px;
+}
+
+@media (max-width: 760px) {
+  .creative-brief-header {
+    flex-direction: column;
+  }
+}

@@ -97,7 +97,7 @@ export function DemoBuilderPage() {
   async function generateWithAi() {
     if (!selected) return
     setGeneratingAi(true)
-    toast.loading('Researching business and designing demo page...', { id: 'ai-demo' })
+    toast.loading('Creating a custom demo from your business context...', { id: 'ai-demo' })
     const result = await generateAiDemo(selected.id)
     if (!result.error) {
       const provider = result.data?.generation_provider || result.data?.ai_provider
@@ -221,9 +221,9 @@ export function DemoBuilderPage() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Phase 9.4</p>
-          <h1>Demo Builder</h1>
-          <p>Pick a prospect, generate a brand-aware AI demo page, deploy it, then wait for GitHub Pages to finish publishing.</p>
+          <p className="eyebrow">Phase 12</p>
+          <h1>Demo Studio</h1>
+          <p>Paste the same rich context you would give ChatGPT or Claude, add social links/logo notes, generate a creative demo, review it, then deploy only when it feels client-ready.</p>
         </div>
         {saved && <span className="save-pill">{saved}</span>}
       </header>
@@ -237,7 +237,7 @@ export function DemoBuilderPage() {
         >
           <div>
             <p className="eyebrow">Step-by-step</p>
-            <h2>How to use the Demo Builder</h2>
+            <h2>How to use the Demo Studio</h2>
           </div>
           <ChevronDown className={isTutorialCollapsed ? 'chevron collapsed' : 'chevron'} size={18} />
         </button>
@@ -245,8 +245,8 @@ export function DemoBuilderPage() {
         {!isTutorialCollapsed && (
           <div className="tutorial-steps">
             <article className="tutorial-step"><span>1</span><div><h3>Pick a prospect</h3><p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p></div></article>
-            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate with AI</strong> to research the business, detect the logo/brand colors, and create a custom demo page.</p></div></article>
-            <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Review the AI research summary, demo copy, and design notes before publishing.</p></div></article>
+            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Paste Google/Instagram/Facebook context, add any creative notes, then click <strong>Generate Creative Demo</strong> to create a more client-specific page.</p></div></article>
+            <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Review the creative brief, AI research summary, generated copy, design notes, and preview before publishing.</p></div></article>
             <article className="tutorial-step"><span>4</span><div><h3>Deploy the demo</h3><p>Click <strong>Deploy to GitHub Pages</strong>. The OS will push the AI-generated HTML/CSS files and mark the site as publishing.</p></div></article>
             <article className="tutorial-step"><span>5</span><div><h3>Wait for publishing</h3><p>GitHub Pages can take 1–3 minutes. Use <strong>Check if live</strong> until the preview is ready.</p></div></article>
             <article className="tutorial-step"><span>6</span><div><h3>Send and follow up</h3><p>After you text, DM, or email the demo, click <strong>Mark Sent + Follow Up</strong>. The OS will schedule the next follow-up automatically.</p></div></article>
@@ -289,6 +289,41 @@ export function DemoBuilderPage() {
               </div>
               <Link className="secondary-button" to={`/prospects/${slugForProspect(selected)}`}>Open workspace</Link>
             </div>
+
+            <section className="creative-brief-card">
+              <div className="creative-brief-header">
+                <div>
+                  <p className="eyebrow">Creative Brief Mode</p>
+                  <h3>Give AI the same context you would paste into ChatGPT or Claude</h3>
+                  <p>Use this area for raw Google Places notes, Facebook/Instagram observations, menu/services, owner notes, brand preferences, or anything that should influence the demo.</p>
+                </div>
+                <span className="status-chip">Review before deploy</span>
+              </div>
+
+              <div className="form-grid compact">
+                <label className="span-2 tall-textarea">Business context paste box
+                  <textarea
+                    value={selected.business_context || ''}
+                    onChange={(e) => patch({ business_context: e.target.value })}
+                    placeholder={`Paste Google Places info, Facebook/Instagram details, services, hours, reviews summary, menu, photos needed, or anything you want AI to consider for ${selected.business_name}.`}
+                  />
+                </label>
+                <label className="span-2">Creative direction
+                  <textarea
+                    value={selected.creative_direction || ''}
+                    onChange={(e) => patch({ creative_direction: e.target.value })}
+                    placeholder="Example: Make it feel like a bold custom auto shop site, use a darker premium look, avoid generic SaaS layouts, make it more visual and local."
+                  />
+                </label>
+                <label className="span-2">Style inspiration / reference notes
+                  <textarea
+                    value={selected.style_inspiration || ''}
+                    onChange={(e) => patch({ style_inspiration: e.target.value })}
+                    placeholder="Paste design inspiration, competitor links, logo notes, colors to avoid/use, or describe the vibe you want."
+                  />
+                </label>
+              </div>
+            </section>
 
             {selected.deployment_status === 'publishing' ? (
               <div className="publishing-callout">
@@ -351,7 +386,7 @@ export function DemoBuilderPage() {
 
             <div className="action-row">
               <button className="primary-button" type="button" onClick={generateWithAi} disabled={generatingAi}>
-                <Sparkles size={16} /> {generatingAi ? 'Generating with AI...' : 'Generate with AI'}
+                <Sparkles size={16} /> {generatingAi ? 'Generating creative demo...' : 'Generate Creative Demo'}
               </button>
               <button className="secondary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
                 <Sparkles size={16} /> Basic Demo Plan
