@@ -1,5 +1,6 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, RotateCcw, Save, Send, Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { slugify, useProspects } from './ProspectsContext'
@@ -21,6 +22,7 @@ export function ProspectWorkspacePage() {
     demoTracker: false,
     activityNotes: false,
   })
+  const [confirmDialog, setConfirmDialog] = useState(null)
 
   const prospectActivities = useMemo(() => activities.filter((activity) => activity.prospect_id === prospect?.id), [activities, prospect?.id])
 
@@ -110,43 +112,73 @@ export function ProspectWorkspacePage() {
   }
 
 
-  async function handleDeleteActivity(activity) {
-    const confirmed = window.confirm(`Delete this ${activity.type.toLowerCase()} note? This cannot be undone.`)
-    if (!confirmed) return
-    const result = await deleteActivity(activity.id)
-    if (!result.error) toast.success('Activity deleted')
-    else toast.error(result.error.message || 'Unable to delete activity')
+  function openConfirmDialog(config) {
+    setConfirmDialog(config)
   }
 
-  async function handleClearDemo() {
-    const confirmed = window.confirm('Clear this demo workflow? This removes generated copy, AI HTML/CSS, research, preview URL, and publishing status. It does not delete files already pushed to GitHub Pages.')
-    if (!confirmed) return
-    const result = await clearDemo(prospect.id)
-    if (!result.error) toast.success('Demo fields cleared')
-    else toast.error(result.error.message || 'Unable to clear demo fields')
+  function closeConfirmDialog() {
+    setConfirmDialog(null)
   }
 
-  async function handleClearClientDetails() {
-    const confirmed = window.confirm('Clear client details and move this record back to proposal?')
-    if (!confirmed) return
-    const result = await clearClientDetails(prospect.id)
-    if (!result.error) toast.success('Client details cleared')
-    else toast.error(result.error.message || 'Unable to clear client details')
+  function handleDeleteActivity(activity) {
+    openConfirmDialog({
+      title: `Delete ${activity.type.toLowerCase()} note?`,
+      message: 'This removes the activity from the prospect timeline. This cannot be undone.',
+      confirmLabel: 'Delete note',
+      onConfirm: async () => {
+        closeConfirmDialog()
+        const result = await deleteActivity(activity.id)
+        if (!result.error) toast.success('Activity deleted')
+        else toast.error(result.error.message || 'Unable to delete activity')
+      },
+    })
   }
 
-  async function handleDeleteProspect() {
-    const typed = window.prompt(`Type "${prospect.business_name}" to permanently delete this prospect and its notes.`)
-    if (typed !== prospect.business_name) {
-      if (typed !== null) toast.error('Business name did not match. Prospect was not deleted.')
-      return
-    }
-    const result = await deleteProspect(prospect.id)
-    if (!result.error) {
-      toast.success('Prospect deleted')
-      navigate('/prospects')
-    } else {
-      toast.error(result.error.message || 'Unable to delete prospect')
-    }
+  function handleClearDemo() {
+    openConfirmDialog({
+      title: 'Clear demo fields?',
+      message: 'This removes generated copy, AI HTML/CSS, research, preview URL, and publishing status. It does not delete files already pushed to GitHub Pages.',
+      confirmLabel: 'Clear demo',
+      onConfirm: async () => {
+        closeConfirmDialog()
+        const result = await clearDemo(prospect.id)
+        if (!result.error) toast.success('Demo fields cleared')
+        else toast.error(result.error.message || 'Unable to clear demo fields')
+      },
+    })
+  }
+
+  function handleClearClientDetails() {
+    openConfirmDialog({
+      title: 'Clear client details?',
+      message: 'This removes package, pricing, add-ons, live URL, and client notes, then moves this record back to proposal.',
+      confirmLabel: 'Clear client details',
+      onConfirm: async () => {
+        closeConfirmDialog()
+        const result = await clearClientDetails(prospect.id)
+        if (!result.error) toast.success('Client details cleared')
+        else toast.error(result.error.message || 'Unable to clear client details')
+      },
+    })
+  }
+
+  function handleDeleteProspect() {
+    openConfirmDialog({
+      title: 'Delete prospect?',
+      message: 'This permanently deletes this prospect and its saved notes, activities, research, demo fields, and client details from the OS. GitHub Pages demo files are not deleted yet.',
+      confirmLabel: 'Delete prospect',
+      requireText: prospect.business_name,
+      onConfirm: async () => {
+        closeConfirmDialog()
+        const result = await deleteProspect(prospect.id)
+        if (!result.error) {
+          toast.success('Prospect deleted')
+          navigate('/prospects')
+        } else {
+          toast.error(result.error.message || 'Unable to delete prospect')
+        }
+      },
+    })
   }
 
   return (
@@ -280,6 +312,16 @@ export function ProspectWorkspacePage() {
         </div>
         <button className="danger-button" type="button" onClick={handleDeleteProspect}><Trash2 size={16} /> Delete prospect</button>
       </section>
+      <ConfirmDialog
+        open={Boolean(confirmDialog)}
+        title={confirmDialog?.title}
+        message={confirmDialog?.message}
+        confirmLabel={confirmDialog?.confirmLabel}
+        requireText={confirmDialog?.requireText}
+        tone="danger"
+        onCancel={closeConfirmDialog}
+        onConfirm={confirmDialog?.onConfirm}
+      />
     </div>
   )
 }

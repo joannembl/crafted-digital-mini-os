@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useProspects } from '../prospects/ProspectsContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
@@ -25,6 +26,7 @@ export function DemoBuilderPage() {
   const [deploying, setDeploying] = useState(false)
   const [checkingLive, setCheckingLive] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState(null)
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -113,18 +115,28 @@ export function DemoBuilderPage() {
     setGeneratingAi(false)
   }
 
-  async function handleClearDemo() {
+  function closeConfirmDialog() {
+    setConfirmDialog(null)
+  }
+
+  function handleClearDemo() {
     if (!selected) return
-    const confirmed = window.confirm('Clear demo fields for this prospect? This removes preview URL, AI-generated HTML/CSS, research summary, and publishing status. It does not delete GitHub Pages files yet.')
-    if (!confirmed) return
-    const result = await clearDemo(selected.id)
-    if (!result.error) {
-      toast.success('Demo fields cleared')
-      setSaved('Demo cleared')
-      window.setTimeout(() => setSaved(''), 1400)
-    } else {
-      toast.error(result.error.message || 'Unable to clear demo fields')
-    }
+    setConfirmDialog({
+      title: 'Clear demo fields?',
+      message: 'This removes preview URL, AI-generated HTML/CSS, research summary, and publishing status. It does not delete GitHub Pages files yet.',
+      confirmLabel: 'Clear demo',
+      onConfirm: async () => {
+        closeConfirmDialog()
+        const result = await clearDemo(selected.id)
+        if (!result.error) {
+          toast.success('Demo fields cleared')
+          setSaved('Demo cleared')
+          window.setTimeout(() => setSaved(''), 1400)
+        } else {
+          toast.error(result.error.message || 'Unable to clear demo fields')
+        }
+      },
+    })
   }
 
   async function deployDemoSite() {
@@ -377,6 +389,15 @@ export function DemoBuilderPage() {
           </section>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(confirmDialog)}
+        title={confirmDialog?.title}
+        message={confirmDialog?.message}
+        confirmLabel={confirmDialog?.confirmLabel}
+        tone="danger"
+        onCancel={closeConfirmDialog}
+        onConfirm={confirmDialog?.onConfirm}
+      />
     </div>
   )
 }

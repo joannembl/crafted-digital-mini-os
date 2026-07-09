@@ -882,3 +882,116 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   .danger-zone { align-items: stretch; flex-direction: column; }
   .danger-zone .danger-button { width: 100%; }
 }
+
+/* Phase 9.7.1 — confirmation modal polish */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.confirm-dialog {
+  position: relative;
+  width: min(520px, 100%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.modal-close-button:hover {
+  background: #eef2f7;
+  color: #0f172a;
+}
+
+.confirm-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.confirm-icon.danger {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.confirm-dialog-content h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.confirm-dialog-content p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.confirm-text-label {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+  color: #475569;
+}
+
+.confirm-text-label input {
+  width: 100%;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-dialog-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: end;
+    padding: 14px;
+  }
+
+  .confirm-dialog {
+    border-radius: 22px;
+    padding: 24px;
+  }
+
+  .confirm-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-dialog-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
