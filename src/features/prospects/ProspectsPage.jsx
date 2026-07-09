@@ -1,20 +1,81 @@
 import { Link } from 'react-router-dom'
 import { Plus, Search, Sparkles } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
-const emptyForm = {
+const createEmptyForm = () => ({
   business_name: '', owner_name: '', category: '', phone: '', email: '', address: '', website: '', instagram: '', facebook: '', google_place_id: '', google_maps_url: '', google_rating: null, google_review_count: null, google_types: [], google_opening_hours: [], google_imported_at: null, status: 'research', demo_status: 'not_started', preview_url: '', next_follow_up: '', notes: '',
+})
+
+function hasProspectFormChanges(form) {
+  return JSON.stringify(form) !== JSON.stringify(createEmptyForm())
 }
 
 export function ProspectsPage() {
   const { prospects, createProspect, importBusinessFromGooglePlaces, loading, error, slugForProspect } = useProspects()
   const [query, setQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(createEmptyForm)
   const [importing, setImporting] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const businessNameRef = useRef(null)
+  const formHasChanges = hasProspectFormChanges(form)
+
+
+  useEffect(() => {
+    if (!showForm) return
+
+    const focusTimer = window.setTimeout(() => {
+      businessNameRef.current?.focus()
+    }, 50)
+
+    return () => window.clearTimeout(focusTimer)
+  }, [showForm])
+
+  useEffect(() => {
+    if (!showForm) return
+
+    function handleKeyDown(event) {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      handleCancelAddProspect()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showForm, formHasChanges])
+
+  function resetAddProspectForm() {
+    setForm(createEmptyForm())
+    setImporting(false)
+    setShowDiscardDialog(false)
+  }
+
+  function openAddProspectForm() {
+    resetAddProspectForm()
+    setShowForm(true)
+  }
+
+  function closeAddProspectForm() {
+    resetAddProspectForm()
+    setShowForm(false)
+  }
+
+  function handleCancelAddProspect() {
+    if (formHasChanges) {
+      setShowDiscardDialog(true)
+      return
+    }
+
+    closeAddProspectForm()
+  }
+
+  function handleDiscardAddProspect() {
+    closeAddProspectForm()
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
@@ -60,8 +121,7 @@ export function ProspectsPage() {
     event.preventDefault()
     const result = await createProspect(form)
     if (!result.error) {
-      setForm(emptyForm)
-      setShowForm(false)
+      closeAddProspectForm()
       toast.success('Prospect created')
     } else {
       toast.error(result.error.message || 'Unable to create prospect')
@@ -76,7 +136,7 @@ export function ProspectsPage() {
           <h1>Your lead list</h1>
           <p>Add businesses, track their demo status, and keep the next follow-up visible.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => setShowForm((value) => !value)}><Plus size={18} /> Add Prospect</button>
+        <button className="primary-button" type="button" onClick={openAddProspectForm}><Plus size={18} /> Add Prospect</button>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -94,7 +154,7 @@ export function ProspectsPage() {
             </button>
           </div>
           <form className="form-grid" onSubmit={handleSubmit}>
-            <label>Business name<input required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} /></label>
+            <label>Business name<input ref={businessNameRef} required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} /></label>
             <label>Owner name<input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} /></label>
             <label>Category<input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Auto detailer, cafe, tint shop" /></label>
             <label>Address<input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street address, city, state" /></label>
@@ -106,10 +166,21 @@ export function ProspectsPage() {
             <label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Next follow-up<input type="date" value={form.next_follow_up ?? ''} onChange={(e) => setForm({ ...form, next_follow_up: e.target.value })} /></label>
             <label className="span-2">Notes<textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Why this business is a good fit..." /></label>
-            <div className="form-actions span-2"><button className="secondary-button" type="button" onClick={() => setShowForm(false)}>Cancel</button><button className="primary-button" type="submit">Save Prospect</button></div>
+            <div className="form-actions span-2"><button className="secondary-button" type="button" onClick={handleCancelAddProspect}>Cancel</button><button className="primary-button" type="submit">Save Prospect</button></div>
           </form>
         </section>
       )}
+
+      <ConfirmDialog
+        open={showDiscardDialog}
+        title="Discard this prospect?"
+        message="You have unsaved prospect details. Discarding will clear the form, imported Google Places data, and any notes you typed."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        tone="danger"
+        onCancel={() => setShowDiscardDialog(false)}
+        onConfirm={handleDiscardAddProspect}
+      />
 
       <section className="panel">
         <div className="toolbar">
