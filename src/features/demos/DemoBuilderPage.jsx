@@ -16,7 +16,7 @@ function deploymentLabel(status) {
 }
 
 export function DemoBuilderPage() {
-  const { prospects, updateProspect, addActivity, generateDemoPlan, markDemoReady, markDemoSent, slugForProspect } = useProspects()
+  const { prospects, updateProspect, addActivity, generateDemoPlan, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
   const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
   const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
@@ -24,6 +24,7 @@ export function DemoBuilderPage() {
   const [isTutorialCollapsed, setIsTutorialCollapsed] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [checkingLive, setCheckingLive] = useState(false)
+  const [generatingAi, setGeneratingAi] = useState(false)
 
   async function patch(values, message = 'Saved') {
     if (!selected) return
@@ -88,6 +89,22 @@ export function DemoBuilderPage() {
     } finally {
       setCheckingLive(false)
     }
+  }
+
+
+  async function generateWithAi() {
+    if (!selected) return
+    setGeneratingAi(true)
+    toast.loading('Researching business and generating demo copy...', { id: 'ai-demo' })
+    const result = await generateAiDemo(selected.id)
+    if (!result.error) {
+      toast.success('AI demo copy generated', { id: 'ai-demo' })
+      setSaved('AI demo generated')
+      window.setTimeout(() => setSaved(''), 1400)
+    } else {
+      toast.error(result.error.message || 'Unable to generate AI demo', { id: 'ai-demo' })
+    }
+    setGeneratingAi(false)
   }
 
   async function deployDemoSite() {
@@ -255,11 +272,25 @@ export function DemoBuilderPage() {
 
             <div className="status-row">
               <span className={`status-chip deployment-${selected.deployment_status || 'idle'}`}>{deploymentLabel(selected.deployment_status)}</span>
+              {selected.ai_generated_at ? <span className="status-chip">AI generated {new Date(selected.ai_generated_at).toLocaleDateString()}</span> : null}
             </div>
 
+            {selected.ai_research_summary ? (
+              <div className="ai-research-card">
+                <div>
+                  <p className="eyebrow">AI Research</p>
+                  <p>{selected.ai_research_summary}</p>
+                </div>
+                {selected.ai_source_links ? <pre>{selected.ai_source_links}</pre> : null}
+              </div>
+            ) : null}
+
             <div className="action-row">
-              <button className="primary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
-                <Sparkles size={16} /> Generate Demo Plan
+              <button className="primary-button" type="button" onClick={generateWithAi} disabled={generatingAi}>
+                <Sparkles size={16} /> {generatingAi ? 'Generating with AI...' : 'Generate with AI'}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => runAction(generateDemoPlan, 'Demo plan generated')}>
+                <Sparkles size={16} /> Basic Demo Plan
               </button>
               <button className="secondary-button" type="button" onClick={deployDemoSite} disabled={deploying || selected.deployment_status === 'publishing'}>
                 <Rocket size={16} /> {deploying ? 'Deploying...' : selected.deployment_status === 'publishing' ? 'Publishing...' : 'Deploy to GitHub Pages'}

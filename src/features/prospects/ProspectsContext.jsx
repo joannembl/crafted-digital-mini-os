@@ -42,6 +42,9 @@ const seedProspects = [
     demo_copy: 'Hero: A cozy neighborhood cafe with handcrafted drinks and friendly service. Sections: Featured drinks, about the cafe, menu preview, visit us, contact.',
     demo_notes: 'Use warm photos, simple menu cards, and clear call-to-action buttons.',
     demo_last_sent: null,
+    ai_research_summary: '',
+    ai_source_links: '',
+    ai_generated_at: null,
     package_type: 'Website, Handled',
     monthly_price: 99,
     setup_fee: 99,
@@ -164,6 +167,9 @@ export function ProspectsProvider({ children }) {
       demo_copy: values.demo_copy || '',
       demo_notes: values.demo_notes || '',
       demo_last_sent: values.demo_last_sent || null,
+      ai_research_summary: values.ai_research_summary || '',
+      ai_source_links: values.ai_source_links || '',
+      ai_generated_at: values.ai_generated_at || null,
       package_type: values.package_type || '',
       monthly_price: values.monthly_price === '' || values.monthly_price == null ? null : Number(values.monthly_price),
       setup_fee: values.setup_fee === '' || values.setup_fee == null ? null : Number(values.setup_fee),
@@ -222,6 +228,98 @@ export function ProspectsProvider({ children }) {
     const { data, error } = await supabase.from('activities').insert(row).select().single()
     if (!error) setActivities((current) => [data, ...current])
     return { data, error }
+  }
+
+
+  function formatAiDemoCopy(generated) {
+    if (!generated) return ''
+    const sections = Array.isArray(generated.sections) ? generated.sections : []
+    return [
+      `Hero: ${generated.hero_headline || ''}`,
+      `Subheadline: ${generated.hero_subheadline || ''}`,
+      `Primary CTA: ${generated.primary_cta || 'Call now'}`,
+      `Secondary CTA: ${generated.secondary_cta || 'View services'}`,
+      '',
+      'Sections:',
+      ...sections.map((section) => `- ${section.title || 'Section'}: ${section.body || ''}`),
+      '',
+      `About: ${generated.about || ''}`,
+      `Contact prompt: ${generated.contact_prompt || ''}`,
+      `Design notes: ${generated.design_notes || ''}`,
+    ].filter(Boolean).join('\n')
+  }
+
+  async function generateAiDemo(prospectId) {
+    const prospect = prospects.find((item) => item.id === prospectId)
+    if (!prospect) return { error: new Error('Prospect not found') }
+
+    if (!isSupabaseConfigured) {
+      const generated = {
+        research_summary: 'Local preview mode: connect Supabase + OpenAI/search secrets to generate research-backed demo copy.',
+        hero_headline: `${prospect.business_name} — modern local website demo`,
+        hero_subheadline: `A clean demo website designed to help ${prospect.business_name} explain services and turn visitors into calls or messages.`,
+        primary_cta: prospect.phone ? 'Call Now' : 'Request a Quote',
+        secondary_cta: 'View Services',
+        sections: [
+          { title: 'Services', body: 'Easy-to-scan cards explain the main services customers are looking for.' },
+          { title: 'Why choose us', body: 'A friendly local message builds trust quickly.' },
+          { title: 'Contact', body: 'Clear buttons make it simple to call, email, or message.' },
+        ],
+        about: `${prospect.business_name} is presented as a trustworthy local business with a clean, mobile-first website.`,
+        contact_prompt: 'Reach out today to get started.',
+        design_notes: 'Mobile-first, simple sections, bold CTA, and local trust cues.',
+        sources: [],
+      }
+      const result = await updateProspect(prospectId, {
+        demo_status: 'building',
+        status: prospect.status === 'research' ? 'demo_ready' : prospect.status,
+        demo_brief: generated.hero_subheadline,
+        demo_copy: formatAiDemoCopy(generated),
+        demo_notes: generated.design_notes,
+        ai_research_summary: generated.research_summary,
+        ai_source_links: '',
+        ai_generated_at: new Date().toISOString(),
+      })
+      if (!result.error) await addActivity(prospectId, { type: 'AI Demo', note: 'Generated AI demo copy in local preview mode.' })
+      return result
+    }
+
+    const { data, error } = await supabase.functions.invoke('generate-demo-ai', {
+      body: { prospect },
+    })
+
+    if (error || data?.error) return { data: null, error: new Error(error?.message || data?.error || 'Unable to generate AI demo') }
+
+    const generated = data.generated
+    const sourceLinks = Array.isArray(generated?.sources)
+      ? generated.sources.map((source) => `${source.title || 'Source'} — ${source.link || ''}`).filter(Boolean).join('\n')
+      : ''
+
+    const result = await updateProspect(prospectId, {
+      demo_status: 'building',
+      status: prospect.status === 'research' ? 'demo_ready' : prospect.status,
+      demo_brief: generated?.hero_subheadline || prospect.demo_brief || `${prospect.business_name} AI-generated demo brief.`,
+      demo_copy: formatAiDemoCopy(generated),
+      demo_notes: generated?.design_notes || prospect.demo_notes || '',
+      ai_research_summary: generated?.research_summary || data.research?.research_summary || '',
+      ai_source_links: sourceLinks,
+      ai_generated_at: new Date().toISOString(),
+    })
+
+    if (!result.error && data.research) {
+      await supabase.from('business_research').insert({
+        workspace_id: workspaceId,
+        prospect_id: prospectId,
+        provider: data.researchProvider || data.research.provider || 'google_places',
+        google_json: data.research.google_place || null,
+        website_content: data.research.website_content || null,
+        ai_summary: generated?.research_summary || data.research?.research_summary || '',
+        source_links: sourceLinks,
+      })
+    }
+
+    if (!result.error) await addActivity(prospectId, { type: 'AI Demo', note: `Generated AI demo copy${data.searched ? ' using Google Places and website research.' : ' from saved prospect details.'}` })
+    return result
   }
 
   async function generateDemoPlan(prospectId) {
@@ -362,6 +460,7 @@ export function ProspectsProvider({ children }) {
     updateProspect,
     addActivity,
     generateDemoPlan,
+    generateAiDemo,
     markDemoReady,
     markDemoSent,
     convertToClient,

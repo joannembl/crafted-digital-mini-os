@@ -735,3 +735,29 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     flex-direction: column;
   }
 }
+
+.ai-research-card {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid rgba(94, 71, 45, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(255,248,235,.78));
+  display: grid;
+  gap: 12px;
+}
+
+.ai-research-card p {
+  margin: 0;
+}
+
+.ai-research-card pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(23, 32, 51, 0.06);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

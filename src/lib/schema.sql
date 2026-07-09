@@ -62,6 +62,9 @@ create table if not exists public.prospects (
   demo_copy text,
   demo_notes text,
   demo_last_sent timestamptz,
+  ai_research_summary text,
+  ai_source_links text,
+  ai_generated_at timestamptz,
   package_type text,
   monthly_price numeric(10,2),
   setup_fee numeric(10,2),
@@ -85,6 +88,19 @@ create table if not exists public.activities (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.business_research (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  prospect_id uuid not null references public.prospects(id) on delete cascade,
+  provider text not null default 'google_places',
+  google_json jsonb,
+  website_content jsonb,
+  ai_summary text,
+  source_links text,
+  created_at timestamptz not null default now()
+);
+
+
 -- Safe Phase 3/4 upgrade columns for existing projects.
 alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
@@ -94,6 +110,9 @@ alter table public.prospects add column if not exists demo_brief text;
 alter table public.prospects add column if not exists demo_copy text;
 alter table public.prospects add column if not exists demo_notes text;
 alter table public.prospects add column if not exists demo_last_sent timestamptz;
+alter table public.prospects add column if not exists ai_research_summary text;
+alter table public.prospects add column if not exists ai_source_links text;
+alter table public.prospects add column if not exists ai_generated_at timestamptz;
 alter table public.prospects add column if not exists package_type text;
 alter table public.prospects add column if not exists monthly_price numeric(10,2);
 alter table public.prospects add column if not exists setup_fee numeric(10,2);
@@ -110,6 +129,7 @@ alter table public.workspace_members enable row level security;
 alter table public.workspace_invites enable row level security;
 alter table public.prospects enable row level security;
 alter table public.activities enable row level security;
+alter table public.business_research enable row level security;
 
 
 -- Backfill readable slugs for existing prospects. The app also falls back to a generated slug if this is empty.
@@ -126,6 +146,7 @@ grant select, insert, update, delete on public.workspace_members to authenticate
 grant select, insert, update, delete on public.workspace_invites to authenticated;
 grant select, insert, update, delete on public.prospects to authenticated;
 grant select, insert, update, delete on public.activities to authenticated;
+grant select, insert, update, delete on public.business_research to authenticated;
 
 
 -- Helper functions avoid self-referencing RLS recursion.
@@ -192,6 +213,11 @@ drop policy if exists "Members can create prospects" on public.prospects;
 drop policy if exists "Members can update prospects" on public.prospects;
 drop policy if exists "Owners can delete prospects" on public.prospects;
 
+drop policy if exists "Members can read business research" on public.business_research;
+drop policy if exists "Members can create business research" on public.business_research;
+drop policy if exists "Members can update business research" on public.business_research;
+drop policy if exists "Owners can delete business research" on public.business_research;
+
 drop policy if exists "Members can read activities" on public.activities;
 drop policy if exists "Members can create activities" on public.activities;
 drop policy if exists "Members can update activities" on public.activities;
@@ -236,6 +262,22 @@ create policy "Members can update prospects" on public.prospects for update to a
 );
 create policy "Owners can delete prospects" on public.prospects for delete to authenticated using (
   public.is_workspace_owner(prospects.workspace_id)
+);
+
+-- Business research
+create policy "Members can read business research" on public.business_research for select to authenticated using (
+  public.is_workspace_member(business_research.workspace_id)
+);
+create policy "Members can create business research" on public.business_research for insert to authenticated with check (
+  public.is_workspace_member(business_research.workspace_id)
+);
+create policy "Members can update business research" on public.business_research for update to authenticated using (
+  public.is_workspace_member(business_research.workspace_id)
+) with check (
+  public.is_workspace_member(business_research.workspace_id)
+);
+create policy "Owners can delete business research" on public.business_research for delete to authenticated using (
+  public.is_workspace_owner(business_research.workspace_id)
 );
 
 -- Activities
