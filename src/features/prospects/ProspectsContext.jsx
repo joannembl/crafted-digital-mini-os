@@ -271,6 +271,9 @@ export function ProspectsProvider({ children }) {
         designed_site: { html: '', css: '', summary: 'Local preview demo copy only', style_direction: 'Modern clean' },
         brand_profile: { logo_url: prospect.brand_logo_url || '', detected_colors: [], source: 'local_preview' },
         sources: [],
+        ai_provider: 'local_preview',
+        generation_provider: 'local_preview',
+        generation_error: '',
       }
       const result = await updateProspect(prospectId, {
         demo_status: 'building',
@@ -287,6 +290,8 @@ export function ProspectsProvider({ children }) {
         demo_style: generated.designed_site?.style_direction || generated.brand_profile?.design_direction || 'Modern clean',
         brand_logo_url: generated.brand_profile?.logo_url || prospect.brand_logo_url || '',
         brand_profile: generated.brand_profile || null,
+        generation_provider: generated.generation_provider || generated.ai_provider || 'local_preview',
+        generation_error: generated.generation_error || '',
       })
       if (!result.error) await addActivity(prospectId, { type: 'AI Demo', note: 'Generated AI-designed demo page in local preview mode.' })
       return result
@@ -318,6 +323,8 @@ export function ProspectsProvider({ children }) {
       demo_style: generated?.designed_site?.style_direction || generated?.brand_profile?.design_direction || data.research?.brand_profile?.design_direction || '',
       brand_logo_url: generated?.brand_profile?.logo_url || data.research?.brand_profile?.logo_url || prospect.brand_logo_url || '',
       brand_profile: generated?.brand_profile || data.research?.brand_profile || null,
+      generation_provider: generated?.generation_provider || generated?.ai_provider || '',
+      generation_error: generated?.generation_error || (Array.isArray(generated?.ai_errors) ? generated.ai_errors.join(' | ') : ''),
     })
 
     if (!result.error && data.research) {
@@ -334,7 +341,13 @@ export function ProspectsProvider({ children }) {
       })
     }
 
-    if (!result.error) await addActivity(prospectId, { type: 'AI Demo', note: `Generated AI-designed demo page${data.searched ? ' using Google Places and website research.' : ' from saved prospect details.'}` })
+    if (!result.error) {
+      const provider = generated?.generation_provider || generated?.ai_provider || 'unknown'
+      const note = provider === 'fallback'
+        ? `AI generation failed; fallback demo created instead. ${generated?.generation_error || ''}`
+        : `Generated AI-designed demo page with ${provider}${data.searched ? ' using Google Places and website research.' : ' from saved prospect details.'}`
+      await addActivity(prospectId, { type: provider === 'fallback' ? 'AI Fallback' : 'AI Demo', note })
+    }
     return result
   }
 

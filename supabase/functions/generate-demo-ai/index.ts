@@ -24,7 +24,44 @@ function truncate(value = '', max = 4500) {
 }
 
 function safeJsonParse(value: string) {
-  try { return JSON.parse(value) } catch { return null }
+  if (!value) return null
+
+  const attempts: string[] = []
+  const raw = value.trim()
+  attempts.push(raw)
+
+  // Gemini/OpenAI sometimes wrap JSON in markdown fences even when told not to.
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim()
+  if (fenced) attempts.push(fenced)
+
+  // Sometimes a model adds a sentence before/after the JSON. Extract the largest object.
+  const firstBrace = raw.indexOf('{')
+  const lastBrace = raw.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) attempts.push(raw.slice(firstBrace, lastBrace + 1))
+
+  for (const attempt of attempts) {
+    try { return JSON.parse(attempt) } catch { /* try next */ }
+  }
+
+  return null
+}
+
+function summarizeGenerationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || 'Unknown generation error')
+  return message.length > 900 ? `${message.slice(0, 900)}…` : message
+}
+
+function validateGeneratedSite(generated: Record<string, unknown> | null) {
+  const site = generated?.designed_site as Record<string, unknown> | undefined
+  const html = typeof site?.html === 'string' ? site.html.trim() : ''
+  const css = typeof site?.css === 'string' ? site.css.trim() : ''
+
+  if (!html || html.length < 700) return 'AI response did not include enough HTML.'
+  if (!css || css.length < 400) return 'AI response did not include enough CSS.'
+  if (!/<html[\s>]/i.test(html) || !/<body[\s>]/i.test(html)) return 'AI HTML was not a complete HTML document.'
+  if (!/styles\.css/i.test(html)) return 'AI HTML did not link to styles.css.'
+
+  return ''
 }
 
 function normalizeUrl(url = '') {
@@ -61,120 +98,48 @@ const categoryPalettes: Record<string, string[][]> = {
     ['#4b2e1f', '#c47f3f', '#f6ead7', '#7c8f62', '#211713'],
     ['#2f241d', '#b85c38', '#fff1dd', '#d2a55f', '#5f7f69'],
     ['#3e2b23', '#8b5e3c', '#f7efe4', '#b86b4b', '#2f5d50'],
-    ['#22201b', '#e0a458', '#faf3e6', '#5f7161', '#151311'],
-    ['#3a2e2a', '#e8846b', '#fbf0e3', '#6f8f8c', '#1c1613'],
-    ['#26211c', '#c9a15a', '#f4ede0', '#8f5c4e', '#100d0a'],
   ],
   restaurant: [
     ['#5c1f1b', '#c84630', '#fff3df', '#6f7d3c', '#211a16'],
     ['#2e241f', '#a63d2a', '#f6dfb9', '#857346', '#171717'],
-    ['#3d1414', '#e0763e', '#fdf1e0', '#4c6b4f', '#1a1010'],
-    ['#241c1a', '#d94f4f', '#f7e9d7', '#3f7d6b', '#120e0d'],
   ],
   automotive: [
     ['#111827', '#e11d48', '#f59e0b', '#e5e7eb', '#020617'],
     ['#151515', '#d72638', '#a5b4c3', '#f5f5f0', '#2b2d42'],
     ['#0b0f14', '#ff5a1f', '#cbd5e1', '#111827', '#f8fafc'],
-    ['#141414', '#00b4d8', '#e5e5e5', '#ffb703', '#0a0a0a'],
   ],
   beauty: [
     ['#2b2024', '#d8a7b1', '#fff2f5', '#b68b5f', '#f7dfe6'],
     ['#241a1f', '#c48b9f', '#f9e8dd', '#8c6a57', '#fffaf7'],
-    ['#1f1418', '#e6b8c2', '#fdf4f0', '#a97c50', '#f2e0d5'],
-    ['#2a1d22', '#c99b7a', '#faeee6', '#9c6b7a', '#fef7f4'],
   ],
   fitness: [
     ['#0f172a', '#84cc16', '#f97316', '#f8fafc', '#1f2937'],
     ['#101820', '#f2aa4c', '#f7f7f2', '#4b5563', '#000000'],
-    ['#181818', '#39ff88', '#f5f5f5', '#ff3b3b', '#0d0d0d'],
-    ['#12172b', '#00e0d3', '#f4f4f4', '#ff7a00', '#05070f'],
   ],
   professional: [
     ['#102a43', '#2f80ed', '#f4efe6', '#64748b', '#0f172a'],
     ['#1f2937', '#0e7490', '#f5f1e8', '#94a3b8', '#111827'],
-    ['#1a2238', '#6c63ff', '#f6f4f0', '#7a8699', '#0e1220'],
-    ['#0d1b2a', '#3a86ff', '#f2efe9', '#8d99ae', '#060c14'],
   ],
   luxury: [
     ['#09090b', '#c6a15b', '#fffaf0', '#3f3f46', '#18181b'],
     ['#111111', '#bfa46f', '#f7f0df', '#544936', '#000000'],
-    ['#151312', '#a67c52', '#f9f5ec', '#4a4238', '#0a0908'],
   ],
   default: [
     ['#1f2937', '#0f766e', '#f7f3e8', '#d97706', '#111827'],
     ['#212529', '#2a9d8f', '#f4f1de', '#e76f51', '#264653'],
     ['#2d3142', '#ef8354', '#f5f0e6', '#4f5d75', '#111827'],
-    ['#1c1f26', '#5e60ce', '#f2ede4', '#e29578', '#0f1115'],
   ],
 }
 
-// Structural axes are chosen independently in code (not left to the AI to invent),
-// so variety comes from combinatorics rather than hoping the model interprets a seed.
-// 8 heroes x 6 navs x 8 section orders x 6 cards x 6 motifs x 5 CTAs x 5 type pairs
-// = tens of thousands of distinct combinations, spread across every category.
-const heroLayouts = [
-  'split hero: headline + CTA on the left, large diagonal-clipped image panel on the right',
-  'full-bleed hero with centered oversized wordmark and a thin nav bar overlaid on top',
-  'asymmetric hero: oversized stacked headline on the left third, small floating stat/quote card on the right',
-  'top-left corner logo mark only, hero fills the full viewport with large centered CTA',
-  'magazine hero: large pull-quote style headline beside a small grid of accent thumbnails',
-  'split hero with a vertical divider line and an offset stat block bottom-right',
-  'layered hero with angled color-block shapes behind a left-aligned text block',
-  'minimal hero: giant typography only, no imagery, single centered CTA pill',
-]
-
-const navStyles = [
-  'sticky top nav, logo left, links right, rounded pill CTA button',
-  'centered logo nav with links split evenly left and right of it',
-  'vertical nav rail on desktop that collapses to a hamburger on mobile',
-  'bottom-fixed floating pill nav bar',
-  'transparent nav over the hero that solidifies with a shadow on scroll',
-  'minimal text-only nav with no background and wide letter-spacing',
-]
-
-const sectionOrderOptions = [
-  ['hero', 'services', 'about', 'gallery', 'testimonial', 'contact'],
-  ['hero', 'about', 'services', 'contact'],
-  ['hero', 'gallery', 'services', 'about', 'contact'],
-  ['hero', 'services', 'testimonial', 'about', 'contact'],
-  ['hero', 'about', 'gallery', 'services', 'testimonial', 'contact'],
-  ['hero', 'testimonial', 'services', 'about', 'contact'],
-  ['hero', 'services', 'about', 'contact'],
-  ['hero', 'gallery', 'about', 'services', 'contact'],
-]
-
-const cardStyles = [
-  'rounded cards with soft drop shadow',
-  'flat bordered cards, no shadow, sharp corners',
-  'asymmetric masonry cards with varying heights',
-  'numbered list style with oversized index numbers instead of card containers',
-  'image-forward cards with a color-tint overlay and bottom-aligned text',
-  'no card containers at all — a clean divider-line list with generous spacing',
-]
-
-const decorativeMotifs = [
-  'soft organic blob shapes bleeding behind the hero',
-  'thin geometric line accents in the corners of sections',
-  'a subtle halftone dot texture panel behind one section',
-  'diagonal color-block section transitions instead of straight edges',
-  'oversized typographic quotation marks used as a decorative accent',
-  'no decoration — rely entirely on whitespace, type scale, and the palette',
-]
-
-const ctaStyles = [
-  'solid pill primary button + ghost/outline secondary button',
-  'underlined text link paired with one solid button',
-  'full-width color banner CTA strip between sections',
-  'floating sticky CTA button pinned bottom-right on scroll',
-  'large bordered CTA card with an arrow icon, not a button',
-]
-
-const typographyPairings = [
-  'serif display headline paired with a clean sans-serif body',
-  'condensed bold sans headline paired with a regular-weight sans body',
-  'all-caps tracked-out headline paired with a light-weight body',
-  'italic serif accent headline paired with a clean sans body',
-  'monospace accent labels/eyebrows paired with a sans headline and body',
+const designDirections = [
+  'asymmetrical editorial landing page with magazine-style typography',
+  'bold conversion-focused homepage with diagonal hero panels',
+  'premium boutique layout with oversized whitespace and refined cards',
+  'warm neighborhood website with layered paper textures and organic shapes',
+  'high-energy promo page with split hero, stat blocks, and strong CTAs',
+  'minimal modern local business site with strong grid, sticky CTA, and calm palette',
+  'story-driven homepage with timeline-style sections and large quote block',
+  'visual-first brand page with floating cards, rounded panels, and unique section order',
 ]
 
 function categoryKey(value = '') {
@@ -189,70 +154,19 @@ function categoryKey(value = '') {
   return 'default'
 }
 
-// Pick from a list using a hash salted with `axis`, so each structural axis is
-// chosen independently -- two cafes landing on the same hero layout won't also
-// land on the same nav, cards, motif, etc.
-function seededPick<T>(items: T[], seedBase: string, axis: string) {
-  return items[hashString(`${seedBase}::${axis}`) % items.length]
-}
-
 function chooseBrandPalette(prospect: Prospect, detectedColors: string[]) {
   const cleanDetected = uniqueValues(detectedColors || []).filter((color) => /^#[0-9a-f]{3,6}$/i.test(color)).slice(0, 5)
   if (cleanDetected.length >= 2) return cleanDetected
   const key = categoryKey([prospect.category, prospect.business_name, prospect.notes].filter(Boolean).join(' '))
   const options = categoryPalettes[key] || categoryPalettes.default
-  const seedBase = `${prospect.business_name || ''}-${prospect.category || ''}`
-  return seededPick(options, seedBase, 'palette')
+  return options[hashString(`${prospect.business_name || ''}-${prospect.category || ''}`) % options.length]
 }
 
-function chooseDesignSystem(prospect: Prospect) {
+function chooseDesignDirection(prospect: Prospect) {
   const existing = (prospect.design_direction || prospect.demo_style || '').toString().trim()
-  // A manually-edited style note from the user overrides the generated system entirely.
-  const looksGenerated = /^Hero:.*Nav:.*Cards:/s.test(existing)
-  if (existing && !looksGenerated && !/modern clean|brand-aware design|modern polished local business website/i.test(existing)) {
-    return {
-      summary: existing,
-      custom: true,
-      heroLayout: '',
-      navStyle: '',
-      sectionOrder: [] as string[],
-      cardStyle: '',
-      decorativeMotif: '',
-      ctaStyle: '',
-      typographyPairing: '',
-    }
-  }
-
-  const seedBase = `${prospect.business_name || ''}-${prospect.category || ''}-${prospect.website || ''}`
-  const heroLayout = seededPick(heroLayouts, seedBase, 'hero')
-  const navStyle = seededPick(navStyles, seedBase, 'nav')
-  const sectionOrder = seededPick(sectionOrderOptions, seedBase, 'sections')
-  const cardStyle = seededPick(cardStyles, seedBase, 'cards')
-  const decorativeMotif = seededPick(decorativeMotifs, seedBase, 'motif')
-  const ctaStyle = seededPick(ctaStyles, seedBase, 'cta')
-  const typographyPairing = seededPick(typographyPairings, seedBase, 'type')
-
-  const summary = [
-    `Hero: ${heroLayout}.`,
-    `Nav: ${navStyle}.`,
-    `Section order: ${sectionOrder.join(' -> ')}.`,
-    `Cards: ${cardStyle}.`,
-    `Motif: ${decorativeMotif}.`,
-    `CTA: ${ctaStyle}.`,
-    `Type: ${typographyPairing}.`,
-  ].join(' ')
-
-  return {
-    summary,
-    custom: false,
-    heroLayout,
-    navStyle,
-    sectionOrder,
-    cardStyle,
-    decorativeMotif,
-    ctaStyle,
-    typographyPairing,
-  }
+  if (existing && !/modern clean|brand-aware design|modern polished local business website/i.test(existing)) return existing
+  const seed = `${prospect.business_name || ''}-${prospect.category || ''}-${prospect.website || ''}`
+  return designDirections[hashString(seed) % designDirections.length]
 }
 
 function extractHexColors(html = '') {
@@ -305,7 +219,7 @@ function buildBrandProfile(prospect: Prospect, places: Awaited<ReturnType<typeof
     ...((website?.brandColors as string[] | undefined) || []),
   ]).slice(0, 6)
   const brandPalette = chooseBrandPalette(prospect, detectedColors)
-  const designSystem = chooseDesignSystem(prospect)
+  const designDirection = chooseDesignDirection(prospect)
   const placeType = places.place?.type || prospect.category || 'local business'
   const websiteTitle = website?.title || ''
   const designSeed = hashString(`${prospect.business_name || ''}-${placeType}-${logoUrl}-${brandPalette.join('-')}`)
@@ -315,7 +229,8 @@ function buildBrandProfile(prospect: Prospect, places: Awaited<ReturnType<typeof
     logoUrl ? 'Use the discovered/manual logo as a visible brand anchor.' : 'No logo was discovered; create a distinctive typography-based brand mark.',
     detectedColors.length ? `Detected colors from website/assets: ${detectedColors.join(', ')}` : 'No reliable colors detected from a logo/site.',
     `Required brand palette: ${brandPalette.join(', ')}`,
-    `Required layout system: ${designSystem.summary}`,
+    `Required design direction: ${designDirection}`,
+    `Design seed: ${designSeed}. Use this to make this site visually different from other generated demos.`,
   ].filter(Boolean)
 
   return {
@@ -323,8 +238,7 @@ function buildBrandProfile(prospect: Prospect, places: Awaited<ReturnType<typeof
     detected_colors: detectedColors,
     brand_palette: brandPalette,
     business_type: placeType,
-    design_direction: designSystem.summary,
-    design_system: designSystem,
+    design_direction: designDirection,
     design_seed: designSeed,
     style_hints: styleHints,
     source: logoUrl ? 'website_or_manual_logo' : detectedColors.length ? 'website_colors' : 'category_palette',
@@ -508,23 +422,10 @@ function fallbackDemo(prospect: Prospect, researchSummary: string, sources: Sour
 }
 
 function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, sources: Source[]) {
-  const brandProfile = (research.brand_profile || {}) as Record<string, unknown>
-  const designSystem = (brandProfile.design_system as ReturnType<typeof chooseDesignSystem>) || chooseDesignSystem(prospect)
-  const styleDirection = designSystem.summary
-  const palette = (brandProfile.brand_palette as string[]) || chooseBrandPalette(prospect, [])
-  const designSeed = (brandProfile.design_seed as number) || hashString(`${prospect.business_name || ''}-${Date.now()}`)
-
-  const layoutRequirements = designSystem.custom
-    ? [`Design direction (set manually, follow it exactly): ${styleDirection}`]
-    : [
-        `Hero layout (required, do not substitute): ${designSystem.heroLayout}`,
-        `Navigation style (required): ${designSystem.navStyle}`,
-        `Section order (required, top to bottom): ${(designSystem.sectionOrder as string[]).join(' -> ')}`,
-        `Card/list style (required): ${designSystem.cardStyle}`,
-        `Decorative motif (required): ${designSystem.decorativeMotif}`,
-        `CTA style (required): ${designSystem.ctaStyle}`,
-        `Typography pairing (required): ${designSystem.typographyPairing}`,
-      ]
+  const brandProfile = research.brand_profile || {}
+  const styleDirection = (brandProfile as Record<string, unknown>).design_direction || prospect.design_direction || prospect.demo_style || chooseDesignDirection(prospect)
+  const palette = (brandProfile as Record<string, unknown>).brand_palette || chooseBrandPalette(prospect, [])
+  const designSeed = (brandProfile as Record<string, unknown>).design_seed || hashString(`${prospect.business_name || ''}-${Date.now()}`)
 
   return {
     prospect: {
@@ -558,12 +459,14 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       'designed_site.html must be a complete HTML document that links to styles.css using <link rel="stylesheet" href="styles.css">.',
       'designed_site.css must be complete responsive CSS for the page.',
       `Mandatory palette: ${Array.isArray(palette) ? palette.join(', ') : palette}. Use these colors as CSS variables and as the dominant visual system.`,
-      ...layoutRequirements,
-      'The seven requirements above (hero, nav, section order, cards, motif, CTA, type) are not suggestions -- follow each one exactly as written. This is what makes this demo different from every other demo you generate.',
+      `Mandatory design direction: ${styleDirection}.`,
+      `Design variation seed: ${designSeed}. Use this seed to choose unique section order, hero composition, card style, decorative shapes, spacing rhythm, and CTA treatment.`,
       'Do NOT use the same generic centered hero + three cards + CTA footer layout. Avoid the default blue/purple/indigo SaaS gradient unless those colors are in the mandatory palette.',
       'Do NOT use #172033, #a05a1c, #f7f2ea, or the same navy/orange fallback palette unless those exact colors appear in the mandatory palette.',
+      'Use a client-specific layout: change nav style, hero shape, section order, background treatments, card shape, borders, and CTA placement based on the business.',
       'If brand_profile.logo_url exists, use it as a visible logo in the header/hero with an absolute image URL. This is the only external image allowed.',
       'If there is no logo, create a distinctive text-based wordmark using CSS only.',
+      'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer, but vary their visual structure and order.',
       'Do not include external JavaScript, tracking scripts, remote fonts, or external images except the provided logo URL.',
       'Use CSS gradients, shapes, cards, spacing, typography, pseudo-elements, and responsive layout to make the demo look premium even without photos.',
       'The CSS must be specific to this business. Include CSS custom properties for palette colors and a short comment naming the design direction.',
@@ -600,6 +503,7 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
       generationConfig: {
         temperature: 1.0,
         topP: 0.95,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
       },
     }),
@@ -611,10 +515,21 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
   }
 
   const data = await response.json()
-  const outputText = data.candidates?.[0]?.content?.parts?.map((part: Record<string, string>) => part.text || '').join('') || ''
+  const candidate = data.candidates?.[0]
+  const finishReason = candidate?.finishReason || ''
+  const outputText = candidate?.content?.parts?.map((part: Record<string, string>) => part.text || '').join('') || ''
+
+  if (finishReason === 'MAX_TOKENS') {
+    throw new Error('Gemini response was cut off because it hit max output tokens. Try again or simplify the business research.')
+  }
+
   const parsed = safeJsonParse(outputText || '')
-  if (!parsed) throw new Error('Gemini did not return valid JSON')
-  return { ...parsed, sources: Array.isArray(parsed.sources) ? parsed.sources : sources, ai_provider: 'gemini' }
+  if (!parsed) throw new Error(`Gemini did not return valid JSON. Raw response started with: ${outputText.slice(0, 220)}`)
+
+  const validationError = validateGeneratedSite(parsed)
+  if (validationError) throw new Error(`Gemini generated an unusable site: ${validationError}`)
+
+  return { ...parsed, sources: Array.isArray(parsed.sources) ? parsed.sources : sources, ai_provider: 'gemini', generation_provider: 'gemini', generation_error: '' }
 }
 
 async function generateWithOpenAI(prospect: Prospect, research: Record<string, unknown>, sources: Source[]) {
@@ -635,6 +550,7 @@ async function generateWithOpenAI(prospect: Prospect, research: Record<string, u
         { role: 'system', content: 'You are a senior brand-aware web designer and front-end developer. Return JSON only with fully custom HTML and CSS.' },
         { role: 'user', content: JSON.stringify(prompt) },
       ],
+      max_output_tokens: 8192,
       text: { format: { type: 'json_object' } },
     }),
   })
@@ -645,10 +561,18 @@ async function generateWithOpenAI(prospect: Prospect, research: Record<string, u
   }
 
   const data = await response.json()
+  if (data.status === 'incomplete') {
+    throw new Error(`OpenAI response was incomplete: ${JSON.stringify(data.incomplete_details || {})}`)
+  }
+
   const outputText = data.output_text || data.output?.flatMap((item: Record<string, unknown>) => item.content || [])?.map((part: Record<string, string>) => part.text || '').join('')
   const parsed = safeJsonParse(outputText || '')
-  if (!parsed) throw new Error('OpenAI did not return valid JSON')
-  return { ...parsed, sources: Array.isArray(parsed.sources) ? parsed.sources : sources, ai_provider: 'openai' }
+  if (!parsed) throw new Error(`OpenAI did not return valid JSON. Raw response started with: ${(outputText || '').slice(0, 220)}`)
+
+  const validationError = validateGeneratedSite(parsed)
+  if (validationError) throw new Error(`OpenAI generated an unusable site: ${validationError}`)
+
+  return { ...parsed, sources: Array.isArray(parsed.sources) ? parsed.sources : sources, ai_provider: 'openai', generation_provider: 'openai', generation_error: '' }
 }
 
 async function generateDemoContent(prospect: Prospect, research: Record<string, unknown>, sources: Source[]) {
@@ -657,19 +581,25 @@ async function generateDemoContent(prospect: Prospect, research: Record<string, 
 
   const tryGemini = async () => {
     try { return await generateWithGemini(prospect, research, sources) }
-    catch (error) { errors.push(error.message || 'Gemini failed'); return null }
+    catch (error) { errors.push(summarizeGenerationError(error)); return null }
   }
 
   const tryOpenAI = async () => {
     try { return await generateWithOpenAI(prospect, research, sources) }
-    catch (error) { errors.push(error.message || 'OpenAI failed'); return null }
+    catch (error) { errors.push(summarizeGenerationError(error)); return null }
   }
 
   let generated = preferredProvider === 'openai' ? await tryOpenAI() : await tryGemini()
   if (!generated) generated = preferredProvider === 'openai' ? await tryGemini() : await tryOpenAI()
   if (generated) return { ...generated, ai_errors: errors }
 
-  return { ...fallbackDemo(prospect, research.research_summary as string, sources), ai_provider: 'fallback', ai_errors: errors }
+  return {
+    ...fallbackDemo(prospect, research.research_summary as string, sources),
+    ai_provider: 'fallback',
+    generation_provider: 'fallback',
+    generation_error: errors.length ? errors.join(' | ') : 'No AI provider was configured or available.',
+    ai_errors: errors,
+  }
 }
 
 Deno.serve(async (request) => {

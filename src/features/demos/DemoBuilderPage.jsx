@@ -98,9 +98,15 @@ export function DemoBuilderPage() {
     toast.loading('Researching business and designing demo page...', { id: 'ai-demo' })
     const result = await generateAiDemo(selected.id)
     if (!result.error) {
-      toast.success('AI-designed demo generated', { id: 'ai-demo' })
-      setSaved('AI demo designed')
-      window.setTimeout(() => setSaved(''), 1400)
+      const provider = result.data?.generation_provider || result.data?.ai_provider
+      if (provider === 'fallback') {
+        toast.error('AI failed. Fallback demo created instead.', { id: 'ai-demo', duration: 7000 })
+        setSaved('Fallback demo created')
+      } else {
+        toast.success(`AI-designed demo generated${provider ? ` with ${provider}` : ''}`, { id: 'ai-demo' })
+        setSaved('AI demo designed')
+      }
+      window.setTimeout(() => setSaved(''), 1800)
     } else {
       toast.error(result.error.message || 'Unable to generate AI-designed demo', { id: 'ai-demo' })
     }
@@ -272,8 +278,18 @@ export function DemoBuilderPage() {
 
             <div className="status-row">
               <span className={`status-chip deployment-${selected.deployment_status || 'idle'}`}>{deploymentLabel(selected.deployment_status)}</span>
-              {selected.ai_generated_at ? <span className="status-chip">AI generated {new Date(selected.ai_generated_at).toLocaleDateString()}</span> : null}
+              {selected.ai_generated_at ? <span className="status-chip">{selected.generation_provider === 'fallback' ? 'Fallback generated' : `AI generated ${new Date(selected.ai_generated_at).toLocaleDateString()}`}</span> : null}
+              {selected.generation_provider && selected.generation_provider !== 'fallback' ? <span className="status-chip">Provider: {selected.generation_provider}</span> : null}
             </div>
+
+            {selected.generation_provider === 'fallback' ? (
+              <div className="publishing-callout warning-callout">
+                <div>
+                  <strong>AI generation fell back to a static demo.</strong>
+                  <p>{selected.generation_error || 'Gemini/OpenAI did not return a usable custom website. The generated preview may look more generic than expected.'}</p>
+                </div>
+              </div>
+            ) : null}
 
             {selected.ai_research_summary ? (
               <div className="ai-research-card">

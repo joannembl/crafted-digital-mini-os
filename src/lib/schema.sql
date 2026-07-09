@@ -71,6 +71,8 @@ create table if not exists public.prospects (
   demo_style text,
   brand_logo_url text,
   brand_profile jsonb,
+  generation_provider text,
+  generation_error text,
   package_type text,
   monthly_price numeric(10,2),
   setup_fee numeric(10,2),
@@ -127,6 +129,8 @@ alter table public.prospects add column if not exists demo_design_summary text;
 alter table public.prospects add column if not exists demo_style text;
 alter table public.prospects add column if not exists brand_logo_url text;
 alter table public.prospects add column if not exists brand_profile jsonb;
+alter table public.prospects add column if not exists generation_provider text;
+alter table public.prospects add column if not exists generation_error text;
 alter table public.prospects add column if not exists package_type text;
 alter table public.prospects add column if not exists monthly_price numeric(10,2);
 alter table public.prospects add column if not exists setup_fee numeric(10,2);
@@ -224,11 +228,6 @@ drop policy if exists "Authenticated users can read active invite codes" on publ
 drop policy if exists "Owners can create workspace invites" on public.workspace_invites;
 drop policy if exists "Owners can update workspace invites" on public.workspace_invites;
 drop policy if exists "Owners can delete workspace invites" on public.workspace_invites;
--- SECURITY FIX: the old "revoked = false" select policy let any authenticated user
--- read every workspace's active invite codes (RLS filters rows, not query shape --
--- a client could select the whole table regardless of .eq('code', ...) filters).
--- Invite lookup + redemption now happens through accept_workspace_invite() below,
--- so no broad select policy on workspace_invites is needed for non-owners.
 
 drop policy if exists "Members can read prospects" on public.prospects;
 drop policy if exists "Members can create prospects" on public.prospects;
@@ -264,44 +263,11 @@ create policy "Users can update own workspace membership" on public.workspace_me
 create policy "Users can delete own workspace membership" on public.workspace_members for delete to authenticated using (user_id = auth.uid() or public.is_workspace_owner(workspace_id));
 
 -- Workspace invites
--- Only owners can read invite rows directly. Non-owners never see the table --
--- they redeem a code via accept_workspace_invite(), which checks it server-side.
 create policy "Owners can read workspace invites" on public.workspace_invites for select to authenticated using (public.is_workspace_owner(workspace_id));
+create policy "Authenticated users can read active invite codes" on public.workspace_invites for select to authenticated using (revoked = false);
 create policy "Owners can create workspace invites" on public.workspace_invites for insert to authenticated with check (public.is_workspace_owner(workspace_id));
 create policy "Owners can update workspace invites" on public.workspace_invites for update to authenticated using (public.is_workspace_owner(workspace_id)) with check (public.is_workspace_owner(workspace_id));
 create policy "Owners can delete workspace invites" on public.workspace_invites for delete to authenticated using (public.is_workspace_owner(workspace_id));
-
--- Redeem an invite code: validates the code server-side and joins the caller
--- to the workspace in one atomic step, without ever exposing other workspaces'
--- invite codes to the client.
-create or replace function public.accept_workspace_invite(p_code text)
-returns table (workspace_id uuid, role public.workspace_role)
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_invite public.workspace_invites%rowtype;
-begin
-  select * into v_invite
-  from public.workspace_invites wi
-  where wi.code = upper(trim(p_code))
-    and wi.revoked = false
-  limit 1;
-
-  if not found then
-    raise exception 'Invite code not found or revoked';
-  end if;
-
-  insert into public.workspace_members (workspace_id, user_id, role)
-  values (v_invite.workspace_id, auth.uid(), v_invite.role)
-  on conflict (workspace_id, user_id) do update set role = excluded.role;
-
-  return query select v_invite.workspace_id, v_invite.role;
-end;
-$$;
-
-grant execute on function public.accept_workspace_invite(text) to authenticated;
 
 -- Prospects
 create policy "Members can read prospects" on public.prospects for select to authenticated using (

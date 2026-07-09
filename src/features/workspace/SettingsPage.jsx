@@ -105,19 +105,27 @@ export function SettingsPage() {
     }
 
     setSavingInvite(true)
-    // Code lookup + membership insert both happen inside accept_workspace_invite(),
-    // so the client never reads the workspace_invites table directly and can't
-    // enumerate other workspaces' codes.
-    const { data: acceptedRows, error: memberError } = await supabase
-      .rpc('accept_workspace_invite', { p_code: normalizedCode })
+    const { data: invite, error: inviteLookupError } = await supabase
+      .from('workspace_invites')
+      .select('workspace_id, role, revoked')
+      .eq('code', normalizedCode)
+      .eq('revoked', false)
+      .maybeSingle()
 
-    setSavingInvite(false)
-
-    if (!memberError && !acceptedRows?.length) {
-      setInviteError('That invite code was not found.')
-      toast.error('That invite code was not found')
+    if (inviteLookupError || !invite) {
+      setSavingInvite(false)
+      setInviteError(inviteLookupError?.message || 'That invite code was not found.')
+      toast.error(inviteLookupError?.message || 'That invite code was not found')
       return
     }
+
+    const { error: memberError } = await supabase.from('workspace_members').upsert({
+      workspace_id: invite.workspace_id,
+      user_id: user.id,
+      role: invite.role || 'member',
+    }, { onConflict: 'workspace_id,user_id' })
+
+    setSavingInvite(false)
 
     if (memberError) {
       setInviteError(memberError.message)
