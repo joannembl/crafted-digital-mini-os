@@ -4,6 +4,34 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+async function requireAuthenticatedUser(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  if (!authHeader.startsWith('Bearer ')) {
+    return { user: null, response: jsonResponse({ error: 'Unauthorized' }, 401) }
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { user: null, response: jsonResponse({ error: 'Missing Supabase auth environment' }, 500) }
+  }
+
+  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: authHeader,
+      apikey: supabaseAnonKey,
+    },
+  })
+
+  if (!userResponse.ok) {
+    return { user: null, response: jsonResponse({ error: 'Invalid or expired session' }, 401) }
+  }
+
+  const user = await userResponse.json().catch(() => null)
+  if (!user?.id) return { user: null, response: jsonResponse({ error: 'Invalid session' }, 401) }
+  return { user, response: null }
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -202,6 +230,9 @@ async function githubRequest(path: string, options: RequestInit) {
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+
+  const authCheck = await requireAuthenticatedUser(request)
+  if (authCheck.response) return authCheck.response
 
   try {
     const { prospect } = await request.json()

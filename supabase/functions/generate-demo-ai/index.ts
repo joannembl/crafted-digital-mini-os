@@ -4,8 +4,38 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+import { generateDemoForgeSite } from '../_shared/demo-forge.ts'
+
 type Prospect = Record<string, unknown>
 type Source = { title: string; link: string; snippet: string }
+
+async function requireAuthenticatedUser(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  if (!authHeader.startsWith('Bearer ')) {
+    return { user: null, response: jsonResponse({ error: 'Unauthorized' }, 401) }
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { user: null, response: jsonResponse({ error: 'Missing Supabase auth environment' }, 500) }
+  }
+
+  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: authHeader,
+      apikey: supabaseAnonKey,
+    },
+  })
+
+  if (!userResponse.ok) {
+    return { user: null, response: jsonResponse({ error: 'Invalid or expired session' }, 401) }
+  }
+
+  const user = await userResponse.json().catch(() => null)
+  if (!user?.id) return { user: null, response: jsonResponse({ error: 'Invalid session' }, 401) }
+  return { user, response: null }
+}
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -442,6 +472,9 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       address: prospect.address,
       notes: prospect.notes,
       demo_notes: prospect.demo_notes,
+      business_context: prospect.business_context,
+      creative_direction: prospect.creative_direction,
+      style_inspiration: prospect.style_inspiration,
       style_direction: styleDirection,
     },
     research,
@@ -452,8 +485,10 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
     sources,
     instructions: [
       'You are not filling in a template. You are the visual web designer and front-end developer for this specific local business demo.',
+      'Treat prospect.business_context, prospect.creative_direction, and prospect.style_inspiration as the primary creative brief, the same way a human designer would use pasted Google Places, Facebook, Instagram, and notes.',
+      'Take creative liberties with layout, visual hierarchy, section order, tone, and page composition while staying truthful to provided information.',
       'Generate a complete custom one-page website, not just copy. The website must feel designed specifically for this client and business type.',
-      'Use only the provided prospect info, Google Places data, and website content. Do not invent exact claims, awards, prices, hours, addresses, reviews, or services unless provided.',
+      'Use only the provided prospect info, raw business context, Google Places data, and website content. Do not invent exact claims, awards, prices, hours, addresses, reviews, or services unless provided.',
       'Do not quote reviews. You may summarize broad public facts from the research.',
       'The public website must include a visible preview disclaimer near the top: Preview site designed for [Business Name] · demo content is placeholder · not yet live.',
       'Return valid JSON only. Do not wrap the response in markdown.',
@@ -470,7 +505,7 @@ function buildAiPrompt(prospect: Prospect, research: Record<string, unknown>, so
       'Use a client-specific layout: change nav style, hero shape, section order, background treatments, card shape, borders, and CTA placement based on the business.',
       'If brand_profile.logo_url exists, use it as a visible logo in the header/hero with an absolute image URL. This is the only external image allowed.',
       'If there is no logo, create a distinctive text-based wordmark using CSS only.',
-      'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer, but vary their visual structure and order.',
+      'Use semantic sections, strong hero layout, service/menu cards, about/trust section, contact CTA, and footer, but vary their visual structure and order. If the pasted business context suggests a menu, gallery, booking, custom automotive, detail package, cafe menu, or social-forward layout, design around that instead of a generic services grid.',
       'Do not include external JavaScript, tracking scripts, remote fonts, or external images except the provided logo URL.',
       'Use CSS gradients, shapes, cards, spacing, typography, pseudo-elements, and responsive layout to make the demo look premium even without photos.',
       'The CSS must be specific to this business. Include CSS custom properties for palette colors and a short comment naming the design direction.',
@@ -496,7 +531,7 @@ async function generateWithGemini(prospect: Prospect, research: Record<string, u
           parts: [
             {
               text: [
-                'You are a senior brand-aware web designer and front-end developer. Return JSON only with fully custom HTML and CSS.',
+                'You are a senior creative web designer and front-end developer creating client-ready local business demo websites. Return JSON only with fully custom HTML and CSS.',
                 'Return JSON only. Do not wrap the response in markdown.',
                 JSON.stringify(prompt),
               ].join('\n\n'),
@@ -551,7 +586,7 @@ async function generateWithOpenAI(prospect: Prospect, research: Record<string, u
     body: JSON.stringify({
       model: Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini',
       input: [
-        { role: 'system', content: 'You are a senior brand-aware web designer and front-end developer. Return JSON only with fully custom HTML and CSS.' },
+        { role: 'system', content: 'You are a senior creative web designer and front-end developer creating client-ready local business demo websites. Return JSON only with fully custom HTML and CSS.' },
         { role: 'user', content: JSON.stringify(prompt) },
       ],
       max_output_tokens: 8192,
@@ -597,18 +632,21 @@ async function generateDemoContent(prospect: Prospect, research: Record<string, 
   if (!generated) generated = preferredProvider === 'openai' ? await tryGemini() : await tryOpenAI()
   if (generated) return { ...generated, ai_errors: errors }
 
+  const demoForgeSite = generateDemoForgeSite({ prospect, research, sources })
   return {
-    ...fallbackDemo(prospect, research.research_summary as string, sources),
-    ai_provider: 'fallback',
-    generation_provider: 'fallback',
-    generation_error: errors.length ? errors.join(' | ') : 'No AI provider was configured or available.',
+    ...demoForgeSite,
     ai_errors: errors,
+    generation_error: errors.length ? errors.join(' | ') : '',
+    fallback_reason: errors.length ? errors.join(' | ') : 'No live AI provider was configured or available. DemoForge generated the site locally.',
   }
 }
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+
+  const authCheck = await requireAuthenticatedUser(request)
+  if (authCheck.response) return authCheck.response
 
   try {
     const { prospect } = await request.json()

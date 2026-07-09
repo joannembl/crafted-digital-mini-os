@@ -152,6 +152,9 @@ export function DemoBuilderPage() {
       if (provider === 'fallback') {
         toast.error('AI failed. Fallback demo created instead.', { id: 'ai-demo', duration: 7000 })
         setSaved('Fallback demo created')
+      } else if (provider === 'demoforge') {
+        toast.success('DemoForge site generated from the business profile', { id: 'ai-demo' })
+        setSaved('DemoForge demo created')
       } else {
         toast.success(`AI-designed demo generated${provider ? ` with ${provider}` : ''}`, { id: 'ai-demo' })
         setSaved('AI demo designed')
@@ -407,7 +410,7 @@ export function DemoBuilderPage() {
 
             <div className="status-row">
               <span className={`status-chip deployment-${selected.deployment_status || 'idle'}`}>{deploymentLabel(selected.deployment_status)}</span>
-              {selected.ai_generated_at ? <span className="status-chip">{selected.generation_provider === 'fallback' ? 'Fallback generated' : `AI generated ${new Date(selected.ai_generated_at).toLocaleDateString()}`}</span> : null}
+              {selected.ai_generated_at ? <span className="status-chip">{selected.generation_provider === 'fallback' ? 'Fallback generated' : selected.generation_provider === 'demoforge' ? `DemoForge generated ${new Date(selected.ai_generated_at).toLocaleDateString()}` : `AI generated ${new Date(selected.ai_generated_at).toLocaleDateString()}`}</span> : null}
               {selected.generation_provider && selected.generation_provider !== 'fallback' ? <span className="status-chip">Provider: {selected.generation_provider}</span> : null}
             </div>
 
@@ -416,6 +419,15 @@ export function DemoBuilderPage() {
                 <div>
                   <strong>AI generation fell back to a static demo.</strong>
                   <p>{selected.generation_error || 'Gemini/OpenAI did not return a usable custom website. The generated preview may look more generic than expected.'}</p>
+                </div>
+              </div>
+            ) : null}
+
+            {selected.generation_provider === 'demoforge' ? (
+              <div className="publishing-callout">
+                <div>
+                  <strong>DemoForge generated this site without a paid AI provider.</strong>
+                  <p>The deterministic engine used the business profile, logo, category, social links, and context to create a more polished deployable demo.</p>
                 </div>
               </div>
             ) : null}
