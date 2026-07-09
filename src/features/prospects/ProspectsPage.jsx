@@ -6,7 +6,7 @@ import { useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 const emptyForm = {
-  business_name: '', owner_name: '', category: '', phone: '', email: '', website: '', instagram: '', status: 'research', demo_status: 'not_started', preview_url: '', next_follow_up: '', notes: '',
+  business_name: '', owner_name: '', category: '', phone: '', email: '', website: '', instagram: '', facebook: '', status: 'research', demo_status: 'not_started', preview_url: '', next_follow_up: '', notes: '',
 }
 
 export function ProspectsPage() {
@@ -17,7 +17,7 @@ export function ProspectsPage() {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
-    return prospects.filter((prospect) => [prospect.business_name, prospect.owner_name, prospect.category, prospect.instagram].join(' ').toLowerCase().includes(q))
+    return prospects.filter((prospect) => [prospect.business_name, prospect.owner_name, prospect.category, prospect.instagram, prospect.facebook].join(' ').toLowerCase().includes(q))
   }, [prospects, query])
 
   async function handleSubmit(event) {
@@ -52,7 +52,9 @@ export function ProspectsPage() {
             <label>Business name<input required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} /></label>
             <label>Owner name<input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} /></label>
             <label>Category<input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Auto detailer, cafe, tint shop" /></label>
+            <label>Website<input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></label>
             <label>Instagram<input value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} /></label>
+            <label>Facebook<input value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} /></label>
             <label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
             <label>Email<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
             <label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>

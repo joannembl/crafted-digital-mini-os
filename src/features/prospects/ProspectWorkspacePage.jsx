@@ -1,10 +1,18 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, MessageSquareText, RotateCcw, Save, Send, Sparkles, Trash2, UserRound } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, BriefcaseBusiness, ChevronDown, ExternalLink, FileText, Globe2, MessageSquareText, RotateCcw, Save, Send, Sparkles, Trash2, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { slugify, useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
+
+function InstagramMark({ size = 15 }) {
+  return <span className="platform-mark" style={{ fontSize: `${Math.max(12, size - 1)}px` }}>IG</span>
+}
+
+function FacebookMark({ size = 15 }) {
+  return <span className="platform-mark" style={{ fontSize: `${Math.max(12, size - 1)}px` }}>FB</span>
+}
 
 export function ProspectWorkspacePage() {
   const { slug } = useParams()
@@ -34,6 +42,7 @@ export function ProspectWorkspacePage() {
       email: prospect?.email || '',
       website: prospect?.website || '',
       instagram: prospect?.instagram || '',
+      facebook: prospect?.facebook || '',
       status: prospect?.status || 'research',
       next_follow_up: prospect?.next_follow_up || '',
       notes: prospect?.notes || '',
@@ -59,6 +68,26 @@ export function ProspectWorkspacePage() {
 
   function toggleSection(section) {
     setCollapsedSections((current) => ({ ...current, [section]: !current[section] }))
+  }
+
+
+  function externalUrl(value) {
+    const trimmed = (value || '').trim()
+    if (!trimmed) return ''
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  }
+
+  function SocialField({ label, field, icon: Icon, placeholder }) {
+    const url = externalUrl(overviewDraft[field])
+    return (
+      <label className="social-field">
+        <span className="field-label-row"><Icon size={15} /> {label}</span>
+        <span className="social-input-row">
+          <input value={overviewDraft[field] || ''} onChange={(e) => updateOverviewDraft(field, e.target.value)} placeholder={placeholder} />
+          {url && <a className="inline-visit-button" href={url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Visit</a>}
+        </span>
+      </label>
+    )
   }
 
   function CollapsibleHeader({ section, title, icon: Icon, description }) {
@@ -90,6 +119,7 @@ export function ProspectWorkspacePage() {
       email: overviewDraft.email || null,
       website: overviewDraft.website || null,
       instagram: overviewDraft.instagram || null,
+      facebook: overviewDraft.facebook || null,
       status: overviewDraft.status || 'research',
       converted_at: overviewDraft.status === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at,
       next_follow_up: overviewDraft.next_follow_up || null,
@@ -236,14 +266,24 @@ export function ProspectWorkspacePage() {
             </div>
           </div>
           <div className="form-grid compact workspace-form-grid">
+            <div className="overview-subsection span-2">
+              <h3>Business information</h3>
+              <p>Basic details used for outreach, demo generation, and follow-up context.</p>
+            </div>
             <label>Owner<input value={overviewDraft.owner_name || ''} onChange={(e) => updateOverviewDraft('owner_name', e.target.value)} /></label>
             <label>Category<input value={overviewDraft.category || ''} onChange={(e) => updateOverviewDraft('category', e.target.value)} /></label>
-            <label>Phone<input value={overviewDraft.phone || ''} onChange={(e) => updateOverviewDraft('phone', e.target.value)} /></label>
-            <label>Email<input value={overviewDraft.email || ''} onChange={(e) => updateOverviewDraft('email', e.target.value)} /></label>
-            <label>Website<input value={overviewDraft.website || ''} onChange={(e) => updateOverviewDraft('website', e.target.value)} /></label>
-            <label>Instagram<input value={overviewDraft.instagram || ''} onChange={(e) => updateOverviewDraft('instagram', e.target.value)} /></label>
             <label>Status<select value={overviewDraft.status || 'research'} onChange={(e) => updateOverviewDraft('status', e.target.value)}>{prospectStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
             <label>Next follow-up<input type="date" value={overviewDraft.next_follow_up || ''} onChange={(e) => updateOverviewDraft('next_follow_up', e.target.value)} /></label>
+
+            <div className="overview-subsection span-2">
+              <h3>Contact & online presence</h3>
+              <p>Add the links you use for research, demo inspiration, and client outreach.</p>
+            </div>
+            <label>Phone<input value={overviewDraft.phone || ''} onChange={(e) => updateOverviewDraft('phone', e.target.value)} /></label>
+            <label>Email<input value={overviewDraft.email || ''} onChange={(e) => updateOverviewDraft('email', e.target.value)} /></label>
+            <SocialField label="Website" field="website" icon={Globe2} placeholder="https://business.com" />
+            <SocialField label="Instagram" field="instagram" icon={InstagramMark} placeholder="https://instagram.com/business" />
+            <SocialField label="Facebook" field="facebook" icon={FacebookMark} placeholder="https://facebook.com/business" />
             <label className="span-2">Main notes<textarea value={overviewDraft.notes || ''} onChange={(e) => updateOverviewDraft('notes', e.target.value)} /></label>
             <div className="workspace-card-footer span-2"><button className="primary-button" type="button" onClick={saveOverviewChanges}>Save changes</button></div>
           </div>

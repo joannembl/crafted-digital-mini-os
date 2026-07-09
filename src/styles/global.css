@@ -1279,3 +1279,86 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     width: 100%;
   }
 }
+
+
+.overview-subsection {
+  background: #fbfaf7;
+  border: 1px solid #eee8dc;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.overview-subsection h3 {
+  font-size: 0.95rem;
+  margin: 0 0 4px;
+}
+
+.overview-subsection p {
+  color: #6b6f65;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.field-label-row {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.social-field {
+  gap: 8px;
+}
+
+.social-input-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.inline-visit-button {
+  align-items: center;
+  background: #fffaf0;
+  border: 1px solid #e4d3a5;
+  border-radius: 12px;
+  color: #6f5315;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.inline-visit-button:hover {
+  background: #fff4d9;
+}
+
+@media (max-width: 760px) {
+  .social-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-visit-button {
+    width: 100%;
+  }
+}
+
+.platform-mark {
+  align-items: center;
+  background: #f0eadc;
+  border-radius: 6px;
+  color: #7c6224;
+  display: inline-flex;
+  font-weight: 900;
+  height: 18px;
+  justify-content: center;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  width: 22px;
+}
