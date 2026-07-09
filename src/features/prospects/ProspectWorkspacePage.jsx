@@ -249,6 +249,30 @@ export function ProspectWorkspacePage() {
           </div>
         </section>
 
+        <section className="panel collapsible-panel workspace-panel">
+          <CollapsibleHeader section="demoTracker" title="Demo tracker" icon={Sparkles} description="Track preview URLs, publishing status, and demo follow-up actions." />
+          {!collapsedSections.demoTracker && (
+          <div className="workspace-section-body demo-tracker-grid">
+            <div className="form-stack">
+              <Link className="primary-button full-width" to="/demo-builder">Open Demo Builder</Link>
+              <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+              <label>Preview URL<input value={prospect.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
+            </div>
+            <div className="workspace-action-card">
+              <h3>Demo actions</h3>
+              <p>Use these after generating or manually adding a preview URL.</p>
+              <div className="workspace-card-footer stacked">
+                {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
+                <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
+                <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
+                <button className="danger-button full-width" type="button" onClick={handleClearDemo}><RotateCcw size={16} /> Clear demo fields</button>
+              </div>
+            </div>
+          </div>
+          )}
+        </section>
+
+
         <div className="workspace-card-pair">
           <section className="panel collapsible-panel workspace-panel equal-panel">
             <CollapsibleHeader section="clientDetails" title="Client details" icon={BriefcaseBusiness} description="Package, pricing, live URL, and client notes." />
@@ -309,29 +333,6 @@ export function ProspectWorkspacePage() {
             )}
           </section>
         </div>
-
-        <section className="panel collapsible-panel workspace-panel">
-          <CollapsibleHeader section="demoTracker" title="Demo tracker" icon={Sparkles} description="Track preview URLs, publishing status, and demo follow-up actions." />
-          {!collapsedSections.demoTracker && (
-          <div className="workspace-section-body demo-tracker-grid">
-            <div className="form-stack">
-              <Link className="primary-button full-width" to="/demo-builder">Open Demo Builder</Link>
-              <label>Demo status<select value={prospect.demo_status || 'not_started'} onChange={(e) => patch({ demo_status: e.target.value })}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
-              <label>Preview URL<input value={prospect.preview_url || ''} onChange={(e) => patch({ preview_url: e.target.value })} placeholder="https://demo.netlify.app" /></label>
-            </div>
-            <div className="workspace-action-card">
-              <h3>Demo actions</h3>
-              <p>Use these after generating or manually adding a preview URL.</p>
-              <div className="workspace-card-footer stacked">
-                {prospect.preview_url && <a className="secondary-button full-width" href={prospect.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open preview</a>}
-                <button className="primary-button full-width" type="button" onClick={() => markDemoReady(prospect.id, prospect.preview_url).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo ready') : toast.success('Demo marked ready'))}>Mark Demo Ready</button>
-                <button className="secondary-button full-width" type="button" onClick={() => markDemoSent(prospect.id).then((result) => result.error ? toast.error(result.error.message || 'Unable to mark demo sent') : toast.success('Demo marked sent'))}>Mark Sent + Follow Up</button>
-                <button className="danger-button full-width" type="button" onClick={handleClearDemo}><RotateCcw size={16} /> Clear demo fields</button>
-              </div>
-            </div>
-          </div>
-          )}
-        </section>
 
         <section className="panel collapsible-panel workspace-panel">
           <CollapsibleHeader section="activityNotes" title="Activity & notes" icon={MessageSquareText} description="Log calls, DMs, emails, meetings, and follow-up notes." />
