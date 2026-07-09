@@ -54,6 +54,13 @@ create table if not exists public.prospects (
   address text,
   instagram text,
   facebook text,
+  google_place_id text,
+  google_maps_url text,
+  google_rating numeric(3,2),
+  google_review_count integer,
+  google_types text[],
+  google_opening_hours text[],
+  google_imported_at timestamptz,
   status text not null default 'research',
   demo_status text not null default 'not_started',
   deployment_status text not null default 'idle',
@@ -118,6 +125,13 @@ alter table public.prospects add column if not exists slug text;
 alter table public.prospects add column if not exists live_url text;
 alter table public.prospects add column if not exists facebook text;
 alter table public.prospects add column if not exists address text;
+alter table public.prospects add column if not exists google_place_id text;
+alter table public.prospects add column if not exists google_maps_url text;
+alter table public.prospects add column if not exists google_rating numeric(3,2);
+alter table public.prospects add column if not exists google_review_count integer;
+alter table public.prospects add column if not exists google_types text[];
+alter table public.prospects add column if not exists google_opening_hours text[];
+alter table public.prospects add column if not exists google_imported_at timestamptz;
 alter table public.prospects add column if not exists deployment_status text not null default 'idle';
 alter table public.prospects add column if not exists deployment_checked_at timestamptz;
 alter table public.prospects add column if not exists demo_brief text;

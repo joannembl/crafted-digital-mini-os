@@ -36,6 +36,13 @@ const seedProspects = [
     address: '',
     instagram: '',
     facebook: '',
+    google_place_id: '',
+    google_maps_url: '',
+    google_rating: null,
+    google_review_count: null,
+    google_types: [],
+    google_opening_hours: [],
+    google_imported_at: null,
     status: 'demo_ready',
     demo_status: 'ready',
     preview_url: 'https://cafemolliephx.netlify.app/',
@@ -161,6 +168,13 @@ export function ProspectsProvider({ children }) {
       address: values.address || '',
       instagram: values.instagram || '',
       facebook: values.facebook || '',
+      google_place_id: values.google_place_id || '',
+      google_maps_url: values.google_maps_url || '',
+      google_rating: values.google_rating === '' || values.google_rating == null ? null : Number(values.google_rating),
+      google_review_count: values.google_review_count === '' || values.google_review_count == null ? null : Number(values.google_review_count),
+      google_types: Array.isArray(values.google_types) ? values.google_types : [],
+      google_opening_hours: Array.isArray(values.google_opening_hours) ? values.google_opening_hours : [],
+      google_imported_at: values.google_imported_at || null,
       status: values.status || 'research',
       demo_status: values.demo_status || 'not_started',
       deployment_status: values.deployment_status || 'idle',
@@ -251,6 +265,41 @@ export function ProspectsProvider({ children }) {
       `Contact prompt: ${generated.contact_prompt || ''}`,
       `Design notes: ${generated.design_notes || ''}`,
     ].filter(Boolean).join('\n')
+  }
+
+  async function importBusinessFromGooglePlaces({ businessName = '', address = '' } = {}) {
+    const query = [businessName, address].filter(Boolean).join(' ').trim()
+    if (!query) return { data: null, error: new Error('Enter a business name or address first') }
+
+    if (!isSupabaseConfigured) {
+      return {
+        data: {
+          business_name: businessName || 'Imported Business',
+          address,
+          category: '',
+          phone: '',
+          website: '',
+          google_maps_url: address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '',
+          google_place_id: '',
+          google_rating: null,
+          google_review_count: null,
+          google_types: [],
+          google_opening_hours: [],
+          google_imported_at: new Date().toISOString(),
+        },
+        error: null,
+      }
+    }
+
+    const { data, error } = await supabase.functions.invoke('import-google-place', {
+      body: { business_name: businessName, address, query },
+    })
+
+    if (error || data?.error) {
+      return { data: null, error: new Error(error?.message || data?.error || 'Unable to import from Google Places') }
+    }
+
+    return { data: data.business, error: null }
   }
 
   async function generateAiDemo(prospectId) {
@@ -595,6 +644,7 @@ export function ProspectsProvider({ children }) {
     createProspect,
     updateProspect,
     addActivity,
+    importBusinessFromGooglePlaces,
     deleteActivity,
     deleteAllProspectActivities,
     clearDemo,

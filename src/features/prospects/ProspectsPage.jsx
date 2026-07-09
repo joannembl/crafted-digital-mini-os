@@ -1,24 +1,60 @@
 import { Link } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useProspects } from './ProspectsContext'
 import { demoStatuses, labelFor, prospectStatuses } from './prospectOptions'
 
 const emptyForm = {
-  business_name: '', owner_name: '', category: '', phone: '', email: '', address: '', website: '', instagram: '', facebook: '', status: 'research', demo_status: 'not_started', preview_url: '', next_follow_up: '', notes: '',
+  business_name: '', owner_name: '', category: '', phone: '', email: '', address: '', website: '', instagram: '', facebook: '', google_place_id: '', google_maps_url: '', google_rating: null, google_review_count: null, google_types: [], google_opening_hours: [], google_imported_at: null, status: 'research', demo_status: 'not_started', preview_url: '', next_follow_up: '', notes: '',
 }
 
 export function ProspectsPage() {
-  const { prospects, createProspect, loading, error, slugForProspect } = useProspects()
+  const { prospects, createProspect, importBusinessFromGooglePlaces, loading, error, slugForProspect } = useProspects()
   const [query, setQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [importing, setImporting] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return prospects.filter((prospect) => [prospect.business_name, prospect.owner_name, prospect.category, prospect.address, prospect.instagram, prospect.facebook].join(' ').toLowerCase().includes(q))
   }, [prospects, query])
+
+
+  async function handleImportFromGooglePlaces() {
+    if (!form.business_name.trim() && !form.address.trim()) {
+      toast.error('Enter a business name or address first')
+      return
+    }
+
+    setImporting(true)
+    const result = await importBusinessFromGooglePlaces({ businessName: form.business_name, address: form.address })
+    setImporting(false)
+
+    if (result.error) {
+      toast.error(result.error.message || 'Unable to import business')
+      return
+    }
+
+    const business = result.data || {}
+    setForm((current) => ({
+      ...current,
+      business_name: business.business_name || current.business_name,
+      category: business.category || current.category,
+      phone: business.phone || current.phone,
+      address: business.address || current.address,
+      website: business.website || current.website,
+      google_place_id: business.google_place_id || current.google_place_id,
+      google_maps_url: business.google_maps_url || current.google_maps_url,
+      google_rating: business.google_rating ?? current.google_rating,
+      google_review_count: business.google_review_count ?? current.google_review_count,
+      google_types: business.google_types || current.google_types,
+      google_opening_hours: business.google_opening_hours || current.google_opening_hours,
+      google_imported_at: business.google_imported_at || new Date().toISOString(),
+    }))
+    toast.success('Business details imported')
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -48,6 +84,15 @@ export function ProspectsPage() {
       {showForm && (
         <section className="panel">
           <h2>Add a prospect</h2>
+          <div className="import-google-card">
+            <div>
+              <strong>Import from Google Places</strong>
+              <p>Enter a business name and optional address, then pull in address, phone, website, rating, and Maps link.</p>
+            </div>
+            <button className="secondary-button" type="button" onClick={handleImportFromGooglePlaces} disabled={importing}>
+              <Sparkles size={16} /> {importing ? 'Importing...' : 'Import details'}
+            </button>
+          </div>
           <form className="form-grid" onSubmit={handleSubmit}>
             <label>Business name<input required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} /></label>
             <label>Owner name<input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} /></label>
@@ -81,7 +126,7 @@ export function ProspectsPage() {
                 <div><strong>{prospect.business_name}</strong><span>{prospect.category || prospect.owner_name || 'No category yet'}</span></div>
                 <span className="badge">{labelFor(prospectStatuses, prospect.status)}</span>
                 <span className="badge muted">Demo: {labelFor(demoStatuses, prospect.demo_status)}</span>
-                <span>{prospect.next_follow_up ? `Follow up ${prospect.next_follow_up}` : 'No follow-up set'}</span>
+                <span>{prospect.google_rating ? `★ ${prospect.google_rating} (${prospect.google_review_count || 0})` : (prospect.next_follow_up ? `Follow up ${prospect.next_follow_up}` : 'No follow-up set')}</span>
               </Link>
             ))}
           </div>

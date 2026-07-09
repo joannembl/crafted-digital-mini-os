@@ -17,7 +17,7 @@ function FacebookMark({ size = 15 }) {
 export function ProspectWorkspacePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const { prospects, activities, updateProspect, addActivity, deleteActivity, deleteAllProspectActivities, clearDemo, clearClientDetails, deleteProspect, markDemoReady, markDemoSent, convertToClient, generateProposal, markProposalSent, slugForProspect } = useProspects()
+  const { prospects, activities, updateProspect, addActivity, deleteActivity, deleteAllProspectActivities, clearDemo, clearClientDetails, deleteProspect, importBusinessFromGooglePlaces, markDemoReady, markDemoSent, convertToClient, generateProposal, markProposalSent, slugForProspect } = useProspects()
   const prospect = prospects.find((item) => item.id === slug || item.slug === slug || slugify(item.business_name) === slug)
   const [note, setNote] = useState('')
   const [activityType, setActivityType] = useState('Note')
@@ -31,6 +31,7 @@ export function ProspectWorkspacePage() {
     activityNotes: false,
   })
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [importingBusiness, setImportingBusiness] = useState(false)
 
   const prospectActivities = useMemo(() => activities.filter((activity) => activity.prospect_id === prospect?.id), [activities, prospect?.id])
 
@@ -44,6 +45,13 @@ export function ProspectWorkspacePage() {
       instagram: prospect?.instagram || '',
       facebook: prospect?.facebook || '',
       address: prospect?.address || '',
+      google_place_id: prospect?.google_place_id || '',
+      google_maps_url: prospect?.google_maps_url || '',
+      google_rating: prospect?.google_rating ?? null,
+      google_review_count: prospect?.google_review_count ?? null,
+      google_types: prospect?.google_types || [],
+      google_opening_hours: prospect?.google_opening_hours || [],
+      google_imported_at: prospect?.google_imported_at || null,
       status: prospect?.status || 'research',
       next_follow_up: prospect?.next_follow_up || '',
       notes: prospect?.notes || '',
@@ -118,6 +126,39 @@ export function ProspectWorkspacePage() {
     )
   }
 
+  async function handleImportOverviewFromGooglePlaces() {
+    if (!prospect.business_name?.trim() && !overviewDraft.address?.trim()) {
+      toast.error('Add a business name or address first')
+      return
+    }
+
+    setImportingBusiness(true)
+    const result = await importBusinessFromGooglePlaces({ businessName: prospect.business_name, address: overviewDraft.address })
+    setImportingBusiness(false)
+
+    if (result.error) {
+      toast.error(result.error.message || 'Unable to import business details')
+      return
+    }
+
+    const business = result.data || {}
+    setOverviewDraft((current) => ({
+      ...current,
+      category: business.category || current.category,
+      phone: business.phone || current.phone,
+      website: business.website || current.website,
+      address: business.address || current.address,
+      google_place_id: business.google_place_id || current.google_place_id,
+      google_maps_url: business.google_maps_url || current.google_maps_url,
+      google_rating: business.google_rating ?? current.google_rating,
+      google_review_count: business.google_review_count ?? current.google_review_count,
+      google_types: business.google_types || current.google_types,
+      google_opening_hours: business.google_opening_hours || current.google_opening_hours,
+      google_imported_at: business.google_imported_at || new Date().toISOString(),
+    }))
+    toast.success('Imported Google Places details — review and save changes')
+  }
+
   async function saveOverviewChanges() {
     const result = await patch({
       owner_name: overviewDraft.owner_name || null,
@@ -128,6 +169,13 @@ export function ProspectWorkspacePage() {
       instagram: overviewDraft.instagram || null,
       facebook: overviewDraft.facebook || null,
       address: overviewDraft.address || null,
+      google_place_id: overviewDraft.google_place_id || null,
+      google_maps_url: overviewDraft.google_maps_url || null,
+      google_rating: overviewDraft.google_rating === '' || overviewDraft.google_rating == null ? null : Number(overviewDraft.google_rating),
+      google_review_count: overviewDraft.google_review_count === '' || overviewDraft.google_review_count == null ? null : Number(overviewDraft.google_review_count),
+      google_types: Array.isArray(overviewDraft.google_types) ? overviewDraft.google_types : [],
+      google_opening_hours: Array.isArray(overviewDraft.google_opening_hours) ? overviewDraft.google_opening_hours : [],
+      google_imported_at: overviewDraft.google_imported_at || null,
       status: overviewDraft.status || 'research',
       converted_at: overviewDraft.status === 'won' && !prospect.converted_at ? new Date().toISOString() : prospect.converted_at,
       next_follow_up: overviewDraft.next_follow_up || null,
@@ -266,12 +314,17 @@ export function ProspectWorkspacePage() {
 
       <div className="prospect-workspace-layout">
         <section className="panel workspace-panel overview-panel">
-          <div className="workspace-panel-header-static">
-            <span className="workspace-section-icon"><UserRound size={18} /></span>
-            <div>
-              <h2>Overview</h2>
-              <p>Core prospect details, pipeline stage, follow-up, and main notes.</p>
+          <div className="workspace-panel-header-static split-header">
+            <div className="panel-title-row">
+              <span className="workspace-section-icon"><UserRound size={18} /></span>
+              <div>
+                <h2>Overview</h2>
+                <p>Core prospect details, pipeline stage, follow-up, and main notes.</p>
+              </div>
             </div>
+            <button className="secondary-button" type="button" onClick={handleImportOverviewFromGooglePlaces} disabled={importingBusiness}>
+              <Sparkles size={16} /> {importingBusiness ? 'Importing...' : 'Import from Google'}
+            </button>
           </div>
           <div className="form-grid compact workspace-form-grid">
             <div className="overview-subsection span-2">
@@ -294,6 +347,15 @@ export function ProspectWorkspacePage() {
                 {mapsUrl(overviewDraft.address) && <a className="inline-visit-button" href={mapsUrl(overviewDraft.address)} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Maps</a>}
               </span>
             </label>
+            {(overviewDraft.google_rating || overviewDraft.google_maps_url) && (
+              <div className="google-import-summary span-2">
+                <div>
+                  <strong>Google Places details imported</strong>
+                  <p>{overviewDraft.google_rating ? `★ ${overviewDraft.google_rating} from ${overviewDraft.google_review_count || 0} reviews` : 'Saved Google business profile details.'}</p>
+                </div>
+                {overviewDraft.google_maps_url && <a className="inline-visit-button" href={overviewDraft.google_maps_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Google profile</a>}
+              </div>
+            )}
 
             <div className="overview-subsection span-2">
               <h3>Contact & online presence</h3>

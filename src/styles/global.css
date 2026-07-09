@@ -1362,3 +1362,52 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
   line-height: 1;
   width: 22px;
 }
+
+/* Phase 10.4: Google Places import polish */
+.import-google-card,
+.google-import-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid #ded6c7;
+  border-radius: 18px;
+  background: #fbf7ef;
+  padding: 16px;
+  margin: 14px 0 18px;
+}
+
+.import-google-card p,
+.google-import-summary p {
+  margin: 4px 0 0;
+  color: #6b6255;
+  font-size: .9rem;
+}
+
+.split-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.google-import-summary {
+  margin: 0;
+  background: #f5f8ef;
+  border-color: #d7e4c3;
+}
+
+@media (max-width: 720px) {
+  .import-google-card,
+  .google-import-summary,
+  .split-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
