@@ -133,6 +133,41 @@ function buildSiteHtml(prospect: Record<string, string>) {
 </html>`
 }
 
+function buildFallbackCss() {
+  return `:root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f6f3ed; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+.notice { background: #172033; color: white; font-size: 14px; padding: 10px 18px; text-align: center; }
+.hero { min-height: 72vh; display: grid; place-items: center; padding: 72px 20px; background: linear-gradient(135deg, #fffaf0, #efe6d2); }
+.hero-card { width: min(1040px, 100%); display: grid; grid-template-columns: 1.1fr .9fr; gap: 32px; align-items: center; }
+.eyebrow { color: #9a6b2f; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+h1 { font-size: clamp(42px, 7vw, 82px); line-height: .94; margin: 14px 0; letter-spacing: -0.06em; }
+p { color: #536071; font-size: 18px; line-height: 1.7; }
+.buttons { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+.button { border-radius: 999px; padding: 14px 20px; font-weight: 800; text-decoration: none; border: 1px solid #172033; }
+.primary { background: #172033; color: white; }
+.secondary { background: white; }
+.visual { min-height: 420px; border-radius: 34px; background: radial-gradient(circle at top left, #ffffff 0, #ffffff 24%, #d6bea0 25%, #a86d39 58%, #172033 100%); box-shadow: 0 30px 90px rgba(23,32,51,.18); display: grid; place-items: end start; padding: 28px; overflow: hidden; }
+.visual strong { color: white; font-size: 30px; line-height: 1.05; max-width: 340px; }
+section { padding: 72px 20px; }
+.wrap { width: min(1040px, 100%); margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+.card { background: white; border: 1px solid rgba(23,32,51,.09); border-radius: 24px; padding: 24px; box-shadow: 0 18px 45px rgba(23,32,51,.07); }
+.card h3 { margin-top: 0; }
+.contact { background: #172033; color: white; border-radius: 34px; padding: 36px; display: grid; gap: 14px; }
+.contact p { color: #d6dce7; margin: 0; }
+.contact a { color: white; font-weight: 800; }
+footer { padding: 28px 20px; text-align: center; color: #667085; }
+@media (max-width: 820px) { .hero-card, .grid { grid-template-columns: 1fr; } .visual { min-height: 280px; } }`
+}
+
+function injectStylesheetLink(html: string) {
+  if (html.includes('styles.css')) return html
+  if (html.includes('</head>')) return html.replace('</head>', '  <link rel="stylesheet" href="styles.css" />\n</head>')
+  return html
+}
+
 async function githubRequest(path: string, options: RequestInit) {
   const token = Deno.env.get('GITHUB_TOKEN')
   if (!token) throw new Error('Missing GITHUB_TOKEN secret')
@@ -174,31 +209,39 @@ Deno.serve(async (request) => {
     }
 
     const slug = slugify(prospect.slug || prospect.business_name)
-    const filePath = `${slug}/index.html`
-    const html = buildSiteHtml(prospect)
-    const encodedContent = encodeBase64(html)
+    const htmlPath = `${slug}/index.html`
+    const cssPath = `${slug}/styles.css`
+    const aiHtml = typeof prospect.demo_site_html === 'string' && prospect.demo_site_html.trim().length > 200 ? prospect.demo_site_html : ''
+    const aiCss = typeof prospect.demo_site_css === 'string' && prospect.demo_site_css.trim().length > 50 ? prospect.demo_site_css : ''
+    const html = injectStylesheetLink(aiHtml || buildSiteHtml(prospect))
+    const css = aiCss || buildFallbackCss()
 
-    let sha: string | undefined
-    try {
-      const existing = await githubRequest(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, { method: 'GET' })
-      sha = existing?.sha
-    } catch (error) {
-      if (!String(error.message).includes('Not Found')) throw error
+    async function upsertFile(filePath: string, content: string) {
+      let sha: string | undefined
+      try {
+        const existing = await githubRequest(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, { method: 'GET' })
+        sha = existing?.sha
+      } catch (error) {
+        if (!String(error.message).includes('Not Found')) throw error
+      }
+
+      await githubRequest(`/repos/${owner}/${repo}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Deploy demo site for ${prospect.business_name}: ${filePath}`,
+          content: encodeBase64(content),
+          branch,
+          ...(sha ? { sha } : {}),
+        }),
+      })
     }
 
-    await githubRequest(`/repos/${owner}/${repo}/contents/${filePath}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: `Deploy demo site for ${prospect.business_name}`,
-        content: encodedContent,
-        branch,
-        ...(sha ? { sha } : {}),
-      }),
-    })
+    await upsertFile(htmlPath, html)
+    await upsertFile(cssPath, css)
 
     const previewUrl = `${pagesBaseUrl.replace(/\/$/, '')}/${slug}/`
-    return jsonResponse({ previewUrl, slug, path: filePath })
+    return jsonResponse({ previewUrl, slug, path: htmlPath, files: [htmlPath, cssPath], aiDesigned: Boolean(aiHtml) })
   } catch (error) {
     return jsonResponse({ error: error.message || 'Unable to deploy demo site' }, 500)
   }

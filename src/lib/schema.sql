@@ -65,6 +65,10 @@ create table if not exists public.prospects (
   ai_research_summary text,
   ai_source_links text,
   ai_generated_at timestamptz,
+  demo_site_html text,
+  demo_site_css text,
+  demo_design_summary text,
+  demo_style text,
   package_type text,
   monthly_price numeric(10,2),
   setup_fee numeric(10,2),
@@ -113,6 +117,10 @@ alter table public.prospects add column if not exists demo_last_sent timestamptz
 alter table public.prospects add column if not exists ai_research_summary text;
 alter table public.prospects add column if not exists ai_source_links text;
 alter table public.prospects add column if not exists ai_generated_at timestamptz;
+alter table public.prospects add column if not exists demo_site_html text;
+alter table public.prospects add column if not exists demo_site_css text;
+alter table public.prospects add column if not exists demo_design_summary text;
+alter table public.prospects add column if not exists demo_style text;
 alter table public.prospects add column if not exists package_type text;
 alter table public.prospects add column if not exists monthly_price numeric(10,2);
 alter table public.prospects add column if not exists setup_fee numeric(10,2);

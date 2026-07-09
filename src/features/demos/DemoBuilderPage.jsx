@@ -95,14 +95,14 @@ export function DemoBuilderPage() {
   async function generateWithAi() {
     if (!selected) return
     setGeneratingAi(true)
-    toast.loading('Researching business and generating demo copy...', { id: 'ai-demo' })
+    toast.loading('Researching business and designing demo page...', { id: 'ai-demo' })
     const result = await generateAiDemo(selected.id)
     if (!result.error) {
-      toast.success('AI demo copy generated', { id: 'ai-demo' })
-      setSaved('AI demo generated')
+      toast.success('AI-designed demo generated', { id: 'ai-demo' })
+      setSaved('AI demo designed')
       window.setTimeout(() => setSaved(''), 1400)
     } else {
-      toast.error(result.error.message || 'Unable to generate AI demo', { id: 'ai-demo' })
+      toast.error(result.error.message || 'Unable to generate AI-designed demo', { id: 'ai-demo' })
     }
     setGeneratingAi(false)
   }
@@ -189,9 +189,9 @@ export function DemoBuilderPage() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Phase 8.1</p>
+          <p className="eyebrow">Phase 9.3</p>
           <h1>Demo Builder</h1>
-          <p>Pick a prospect, shape the demo plan, deploy the demo, then wait for GitHub Pages to finish publishing.</p>
+          <p>Pick a prospect, generate an AI-designed demo page, deploy it, then wait for GitHub Pages to finish publishing.</p>
         </div>
         {saved && <span className="save-pill">{saved}</span>}
       </header>
@@ -213,9 +213,9 @@ export function DemoBuilderPage() {
         {!isTutorialCollapsed && (
           <div className="tutorial-steps">
             <article className="tutorial-step"><span>1</span><div><h3>Pick a prospect</h3><p>Select the business from the Demo queue. If the queue is empty, add the business on the Prospects page first.</p></div></article>
-            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate Demo Plan</strong> to create a starting brief, section outline, and website copy based on the prospect details.</p></div></article>
-            <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Edit the demo brief, site structure, and build notes so the demo feels personal to that business.</p></div></article>
-            <article className="tutorial-step"><span>4</span><div><h3>Deploy the demo</h3><p>Click <strong>Deploy to GitHub Pages</strong>. The OS will push the demo files and mark the site as publishing.</p></div></article>
+            <article className="tutorial-step"><span>2</span><div><h3>Generate the plan</h3><p>Click <strong>Generate with AI</strong> to research the business, generate copy, and create a polished custom demo page.</p></div></article>
+            <article className="tutorial-step"><span>3</span><div><h3>Refine the copy</h3><p>Review the AI research summary, demo copy, and design notes before publishing.</p></div></article>
+            <article className="tutorial-step"><span>4</span><div><h3>Deploy the demo</h3><p>Click <strong>Deploy to GitHub Pages</strong>. The OS will push the AI-generated HTML/CSS files and mark the site as publishing.</p></div></article>
             <article className="tutorial-step"><span>5</span><div><h3>Wait for publishing</h3><p>GitHub Pages can take 1–3 minutes. Use <strong>Check if live</strong> until the preview is ready.</p></div></article>
             <article className="tutorial-step"><span>6</span><div><h3>Send and follow up</h3><p>After you text, DM, or email the demo, click <strong>Mark Sent + Follow Up</strong>. The OS will schedule the next follow-up automatically.</p></div></article>
           </div>
