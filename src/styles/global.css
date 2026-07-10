@@ -1649,3 +1649,81 @@ a.primary-button, a.secondary-button { text-decoration: none; display: inline-fl
     width: 100%;
   }
 }
+
+/* Phase 13.1: authentication UX polish */
+.auth-card.auth-card-wide {
+  width: min(520px, 100%);
+}
+
+.auth-success-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  margin: 24px auto 16px;
+  background: #e8f6e8;
+  color: #25632a;
+  border: 1px solid #b8dfbb;
+}
+
+.email-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e7e1d4;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #fbfaf7;
+  font-weight: 900;
+  color: #171915;
+  margin: 4px 0 10px;
+  word-break: break-word;
+}
+
+.muted-copy {
+  font-size: .95rem;
+  margin-top: 8px;
+}
+
+.auth-actions-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #6b6f65;
+  border-radius: 10px;
+}
+
+.password-toggle:hover {
+  background: #f3f0e8;
+  color: #171915;
+}
+
+button:disabled,
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}

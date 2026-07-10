@@ -9,6 +9,12 @@ const demoUser = {
   user_metadata: { full_name: 'Crafted Digital Owner' },
 }
 
+function getEmailRedirectTo() {
+  return import.meta.env.DEV
+    ? 'http://localhost:5173'
+    : 'https://joannembl.github.io/crafted-digital-mini-os/'
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -46,16 +52,29 @@ export function AuthProvider({ children }) {
   async function signUp(email, password, fullName) {
     if (!isSupabaseConfigured) {
       setSession({ user: { ...demoUser, email, user_metadata: { full_name: fullName } } })
-      return { error: null }
+      return { data: { localPreview: true }, error: null }
     }
+
     return supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: import.meta.env.DEV
-          ? 'http://localhost:5173'
-          : 'https://joannembl.github.io/crafted-digital-mini-os/',
+        emailRedirectTo: getEmailRedirectTo(),
+      },
+    })
+  }
+
+  async function resendConfirmation(email) {
+    if (!isSupabaseConfigured) {
+      return { data: { localPreview: true }, error: null }
+    }
+
+    return supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: getEmailRedirectTo(),
       },
     })
   }
@@ -74,6 +93,7 @@ export function AuthProvider({ children }) {
     loading,
     signIn,
     signUp,
+    resendConfirmation,
     signOut,
     isSupabaseConfigured,
   }), [session, loading])
