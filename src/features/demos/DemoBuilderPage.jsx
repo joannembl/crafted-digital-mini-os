@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -17,10 +17,31 @@ function deploymentLabel(status) {
 }
 
 export function DemoBuilderPage() {
+  const { slug } = useParams()
+  const navigate = useNavigate()
   const { prospects, updateProspect, addActivity, clearDemo, generateDemoPlan, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
-  const [selectedId, setSelectedId] = useState(demoProspects[0]?.id || '')
-  const selected = demoProspects.find((prospect) => prospect.id === selectedId) || demoProspects[0]
+  const routedProspect = useMemo(
+    () => demoProspects.find((prospect) => slugForProspect(prospect) === slug || prospect.id === slug),
+    [demoProspects, slug, slugForProspect],
+  )
+  const [selectedId, setSelectedId] = useState('')
+  const selected = demoProspects.find((prospect) => prospect.id === selectedId) || routedProspect || demoProspects[0]
+
+  useEffect(() => {
+    if (routedProspect && routedProspect.id !== selectedId) {
+      setSelectedId(routedProspect.id)
+      return
+    }
+    if (!slug && !selectedId && demoProspects[0]) {
+      setSelectedId(demoProspects[0].id)
+    }
+  }, [routedProspect?.id, slug, selectedId, demoProspects])
+
+  function selectProspect(prospect) {
+    setSelectedId(prospect.id)
+    navigate(`/demo-builder/${slugForProspect(prospect)}`)
+  }
   const [saved, setSaved] = useState('')
   const [isTutorialCollapsed, setIsTutorialCollapsed] = useState(false)
   const [deploying, setDeploying] = useState(false)
@@ -322,7 +343,7 @@ export function DemoBuilderPage() {
                   key={prospect.id}
                   className={`queue-item ${selected?.id === prospect.id ? 'active' : ''}`}
                   type="button"
-                  onClick={() => setSelectedId(prospect.id)}
+                  onClick={() => selectProspect(prospect)}
                 >
                   <strong>{prospect.business_name}</strong>
                   <span>{labelFor(demoStatuses, prospect.demo_status)}</span>

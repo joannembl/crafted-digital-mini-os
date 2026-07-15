@@ -24,8 +24,10 @@ export function App() {
         <Route path="prospects" element={<ProspectsPage />} />
         <Route path="prospects/:slug" element={<ProspectWorkspacePage />} />
         <Route path="demo-builder" element={<DemoBuilderPage />} />
+        <Route path="demo-builder/:slug" element={<DemoBuilderPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="proposals" element={<ProposalCenterPage />} />
+        <Route path="proposals/:slug" element={<ProposalCenterPage />} />
         <Route path="reminders" element={<RemindersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

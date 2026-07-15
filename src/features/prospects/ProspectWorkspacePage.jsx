@@ -549,7 +549,7 @@ export function ProspectWorkspacePage() {
           {!collapsedSections.demoTracker && (
           <div className="workspace-section-body demo-tracker-grid">
             <div className="form-stack">
-              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate('/demo-builder')}>Open Demo Builder</button>
+              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate(`/demo-builder/${slugForProspect(prospect)}`)}>Open Demo Builder</button>
               <label>Demo status<select value={demoDraft.demo_status || 'not_started'} onChange={(e) => updateDemoDraft('demo_status', e.target.value)}>{demoStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
               <label>Preview URL<input value={demoDraft.preview_url || ''} onChange={(e) => updateDemoDraft('preview_url', e.target.value)} placeholder="https://demo.netlify.app" /></label>
             </div>
@@ -608,7 +608,7 @@ export function ProspectWorkspacePage() {
             <CollapsibleHeader section="proposal" title="Proposal" icon={FileText} description="Draft, send, and follow up on your proposal." />
             {!collapsedSections.proposal && (
             <div className="workspace-section-body form-stack">
-              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate('/proposals')}><FileText size={16} /> Open Proposal Center</button>
+              <button className="primary-button full-width" type="button" onClick={() => guardedNavigate(`/proposals/${slugForProspect(prospect)}`)}><FileText size={16} /> Open Proposal Center</button>
               <label>Proposal status
                 <select value={proposalDraft.proposal_status || 'not_started'} onChange={(e) => updateProposalDraft('proposal_status', e.target.value)}>
                   <option value="not_started">Not started</option>

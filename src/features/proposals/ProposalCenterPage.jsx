@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Clipboard, FileText, Send } from 'lucide-react'
 import { useProspects } from '../prospects/ProspectsContext'
 import toast from 'react-hot-toast'
@@ -12,10 +12,31 @@ function copyText(text, setCopied) {
 }
 
 export function ProposalCenterPage() {
+  const { slug } = useParams()
+  const navigate = useNavigate()
   const { prospects, generateProposal, markProposalSent, generateOutreachMessage, updateProspect, slugForProspect } = useProspects()
   const activeProspects = useMemo(() => prospects.filter((prospect) => prospect.status !== 'lost'), [prospects])
-  const [selectedId, setSelectedId] = useState(activeProspects[0]?.id || '')
-  const selected = activeProspects.find((prospect) => prospect.id === selectedId) || activeProspects[0]
+  const routedProspect = useMemo(
+    () => activeProspects.find((prospect) => slugForProspect(prospect) === slug || prospect.id === slug),
+    [activeProspects, slug, slugForProspect],
+  )
+  const [selectedId, setSelectedId] = useState('')
+  const selected = activeProspects.find((prospect) => prospect.id === selectedId) || routedProspect || activeProspects[0]
+
+  useEffect(() => {
+    if (routedProspect && routedProspect.id !== selectedId) {
+      setSelectedId(routedProspect.id)
+      return
+    }
+    if (!slug && !selectedId && activeProspects[0]) {
+      setSelectedId(activeProspects[0].id)
+    }
+  }, [routedProspect?.id, slug, selectedId, activeProspects])
+
+  function selectProspect(prospect) {
+    setSelectedId(prospect.id)
+    navigate(`/proposals/${slugForProspect(prospect)}`)
+  }
   const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState('')
 
@@ -85,7 +106,7 @@ export function ProposalCenterPage() {
           <h2>Prospects</h2>
           <div className="mini-list compact-list">
             {activeProspects.map((prospect) => (
-              <button key={prospect.id} className={`queue-item ${selected?.id === prospect.id ? 'active' : ''}`} type="button" onClick={() => setSelectedId(prospect.id)}>
+              <button key={prospect.id} className={`queue-item ${selected?.id === prospect.id ? 'active' : ''}`} type="button" onClick={() => selectProspect(prospect)}>
                 <strong>{prospect.business_name}</strong>
                 <span>{prospect.proposal_status || 'No proposal yet'}</span>
               </button>
