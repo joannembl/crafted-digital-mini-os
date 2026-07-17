@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { useWorkspace } from '../workspace/WorkspaceContext'
 import { logAuditEvent } from '../../lib/audit'
+import { generateDemoForgeSite } from '../../lib/demoForge'
 
 const ProspectsContext = createContext(null)
 
@@ -191,6 +192,8 @@ export function ProspectsProvider({ children }) {
       demo_brief: values.demo_brief || '',
       demo_copy: values.demo_copy || '',
       demo_notes: values.demo_notes || '',
+      demo_theme_key: values.demo_theme_key || '',
+      demo_layout: values.demo_layout || '',
       demo_last_sent: values.demo_last_sent || null,
       ai_research_summary: values.ai_research_summary || '',
       ai_source_links: values.ai_source_links || '',
@@ -445,6 +448,51 @@ export function ProspectsProvider({ children }) {
 
     const result = await updateProspect(prospectId, values)
     if (!result.error) await addActivity(prospectId, { type: 'Demo', note: 'Generated demo plan and website copy.' })
+    return result
+  }
+
+  // Runs the deterministic DemoForge engine entirely locally — no AI provider, no network call.
+  // overrides can include demo_theme_key / demo_layout ('auto' or a specific key) plus any
+  // creative brief fields, so a manual theme/layout choice takes priority over the auto-hash pick.
+  async function generateForgeDemo(prospectId, overrides = {}) {
+    const baseProspect = prospects.find((item) => item.id === prospectId)
+    if (!baseProspect) return { error: new Error('Prospect not found') }
+    const prospect = { ...baseProspect, ...overrides }
+
+    let generated
+    try {
+      generated = generateDemoForgeSite({ prospect })
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Unable to generate DemoForge site') }
+    }
+
+    const result = await updateProspect(prospectId, {
+      demo_status: 'building',
+      status: prospect.status === 'research' ? 'demo_ready' : prospect.status,
+      demo_brief: generated.hero_subheadline,
+      demo_copy: formatAiDemoCopy(generated),
+      demo_notes: generated.design_notes,
+      ai_research_summary: generated.research_summary,
+      ai_source_links: '',
+      ai_generated_at: new Date().toISOString(),
+      demo_site_html: generated.designed_site?.html || '',
+      demo_site_css: generated.designed_site?.css || '',
+      demo_design_summary: generated.designed_site?.summary || generated.design_notes || '',
+      demo_style: generated.designed_site?.style_direction || '',
+      brand_logo_url: generated.brand_profile?.logo_url || prospect.brand_logo_url || '',
+      brand_profile: generated.brand_profile || null,
+      generation_provider: 'demoforge',
+      generation_error: '',
+      demo_theme_key: overrides.demo_theme_key ?? prospect.demo_theme_key ?? '',
+      demo_layout: overrides.demo_layout ?? prospect.demo_layout ?? '',
+    })
+
+    if (!result.error) {
+      await addActivity(prospectId, {
+        type: 'Demo',
+        note: `Generated DemoForge site (${generated.brand_profile?.design_direction || 'style'}) — deterministic, no AI used.`,
+      })
+    }
     return result
   }
 
@@ -721,6 +769,7 @@ export function ProspectsProvider({ children }) {
     clearClientDetails,
     deleteProspect,
     generateDemoPlan,
+    generateForgeDemo,
     generateAiDemo,
     markDemoReady,
     markDemoSent,

@@ -1,11 +1,12 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw, RotateCcw } from 'lucide-react'
+import { ChevronDown, ExternalLink, Hammer, Rocket, Send, Sparkles, RefreshCw, RotateCcw, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useProspects } from '../prospects/ProspectsContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
+import { getCategoryKey, getThemeOptions, LAYOUT_OPTIONS } from '../../lib/demoForge'
 
 function deploymentLabel(status) {
   switch (status) {
@@ -19,7 +20,7 @@ function deploymentLabel(status) {
 export function DemoBuilderPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const { prospects, updateProspect, addActivity, clearDemo, generateDemoPlan, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
+  const { prospects, updateProspect, addActivity, clearDemo, generateDemoPlan, generateForgeDemo, generateAiDemo, markDemoReady, markDemoSent, slugForProspect } = useProspects()
   const demoProspects = useMemo(() => prospects.filter((prospect) => !['won', 'lost'].includes(prospect.status)), [prospects])
   const routedProspect = useMemo(
     () => demoProspects.find((prospect) => slugForProspect(prospect) === slug || prospect.id === slug),
@@ -47,7 +48,18 @@ export function DemoBuilderPage() {
   const [deploying, setDeploying] = useState(false)
   const [checkingLive, setCheckingLive] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
+  const [generatingForge, setGeneratingForge] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [themeOverride, setThemeOverride] = useState('auto')
+  const [layoutOverride, setLayoutOverride] = useState('auto')
+
+  useEffect(() => {
+    setThemeOverride(selected?.demo_theme_key || 'auto')
+    setLayoutOverride(selected?.demo_layout || 'auto')
+  }, [selected?.id])
+
+  const catKey = selected ? getCategoryKey(selected) : 'local'
+  const themeOptions = useMemo(() => getThemeOptions(catKey), [catKey])
   const [creativeDraft, setCreativeDraft] = useState({
     business_context: '',
     creative_direction: '',
@@ -185,6 +197,37 @@ export function DemoBuilderPage() {
       toast.error(result.error.message || 'Unable to generate AI-designed demo', { id: 'ai-demo' })
     }
     setGeneratingAi(false)
+  }
+
+  async function generateWithForge() {
+    if (!selected) return
+    setGeneratingForge(true)
+    toast.loading('Building DemoForge site (no AI)...', { id: 'forge-demo' })
+    if (isCreativeDraftDirty) {
+      const saveResult = await patch({
+        business_context: creativeDraft.business_context,
+        creative_direction: creativeDraft.creative_direction,
+        style_inspiration: creativeDraft.style_inspiration,
+      }, 'Creative brief saved')
+      if (saveResult?.error) {
+        toast.error(saveResult.error.message || 'Unable to save creative brief before generating', { id: 'forge-demo' })
+        setGeneratingForge(false)
+        return
+      }
+    }
+    const result = await generateForgeDemo(selected.id, {
+      ...creativeDraft,
+      demo_theme_key: themeOverride,
+      demo_layout: layoutOverride,
+    })
+    if (!result.error) {
+      toast.success('DemoForge site generated — no AI involved', { id: 'forge-demo' })
+      setSaved('DemoForge demo created')
+      window.setTimeout(() => setSaved(''), 1800)
+    } else {
+      toast.error(result.error.message || 'Unable to generate DemoForge site', { id: 'forge-demo' })
+    }
+    setGeneratingForge(false)
   }
 
   function closeConfirmDialog() {
@@ -361,6 +404,42 @@ export function DemoBuilderPage() {
               </div>
               <Link className="secondary-button" to={`/prospects/${slugForProspect(selected)}`}>Open workspace</Link>
             </div>
+
+            <section className="creative-brief-card">
+              <div className="creative-brief-header">
+                <div>
+                  <p className="eyebrow">DemoForge Engine</p>
+                  <h3>Pick the look yourself — no AI involved</h3>
+                  <p>DemoForge assembles the demo from your own theme/layout building blocks. Leave either on Auto to let it pick based on category and business name, or choose one directly for full control.</p>
+                </div>
+                <span className="status-chip">Deterministic · runs locally</span>
+              </div>
+
+              <div className="form-grid compact">
+                <label>Layout
+                  <select value={layoutOverride} onChange={(e) => setLayoutOverride(e.target.value)}>
+                    <option value="auto">Auto (pick for me)</option>
+                    {LAYOUT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>Theme <span className="muted-text">({catKey})</span>
+                  <select value={themeOverride} onChange={(e) => setThemeOverride(e.target.value)}>
+                    <option value="auto">Auto (pick for me)</option>
+                    {themeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="card-footer-actions">
+                <span className="muted-text">Category detected as "{catKey}" from the business name/category/notes.</span>
+                <button className="primary-button" type="button" onClick={generateWithForge} disabled={generatingForge}>
+                  <Wand2 size={16} /> {generatingForge ? 'Building DemoForge site...' : 'Generate DemoForge Site'}
+                </button>
+              </div>
+            </section>
 
             <section className="creative-brief-card">
               <div className="creative-brief-header">
