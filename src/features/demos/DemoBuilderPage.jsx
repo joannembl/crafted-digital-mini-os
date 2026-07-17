@@ -415,7 +415,7 @@ export function DemoBuilderPage() {
                 <span className="status-chip">Deterministic · runs locally</span>
               </div>
 
-              <div className="form-grid compact">
+              <div className="form-grid compact demoforge-controls">
                 <label>Layout
                   <select value={layoutOverride} onChange={(e) => setLayoutOverride(e.target.value)}>
                     <option value="auto">Auto (pick for me)</option>
@@ -424,7 +424,7 @@ export function DemoBuilderPage() {
                     ))}
                   </select>
                 </label>
-                <label>Theme <span className="muted-text">({catKey})</span>
+                <label>Theme
                   <select value={themeOverride} onChange={(e) => setThemeOverride(e.target.value)}>
                     <option value="auto">Auto (pick for me)</option>
                     {themeOptions.map((option) => (
@@ -434,12 +434,19 @@ export function DemoBuilderPage() {
                 </label>
               </div>
               <div className="card-footer-actions">
-                <span className="muted-text">Category detected as "{catKey}" from the business name/category/notes.</span>
+                <span className="muted-text">Category detected as "{catKey}" from the business name/category/notes — theme options above are filtered to match.</span>
                 <button className="primary-button" type="button" onClick={generateWithForge} disabled={generatingForge}>
                   <Wand2 size={16} /> {generatingForge ? 'Building DemoForge site...' : 'Generate DemoForge Site'}
                 </button>
               </div>
             </section>
+
+            <style>{`
+              .demoforge-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+              .demoforge-controls label { display: flex; flex-direction: column; gap: 6px; }
+              .demoforge-controls select { width: 100%; }
+              @media (max-width: 640px) { .demoforge-controls { grid-template-columns: 1fr; } }
+            `}</style>
 
             <section className="creative-brief-card">
               <div className="creative-brief-header">

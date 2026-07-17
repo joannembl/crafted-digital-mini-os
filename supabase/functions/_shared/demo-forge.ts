@@ -242,7 +242,63 @@ function contactLines(prospect: DemoForgeProspect) {
   ].filter(Boolean)
 }
 
-function renderHeroSplit(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string; heroHighlight: string }) {
+const WEEKDAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+// Condenses Google's per-day weekday_text array ("Monday: 7:00 AM – 5:00 PM", ...)
+// into ranges like "Monday – Friday" when consecutive days share the same hours.
+// Only ever uses hours that were actually imported — never invents a schedule.
+function summarizeHours(prospect: DemoForgeProspect): { label: string; hours: string }[] {
+  const raw = prospect.google_opening_hours
+  if (!Array.isArray(raw) || !raw.length) return []
+  const parsed = raw
+    .map((entry) => {
+      const str = typeof entry === 'string' ? entry : ''
+      const idx = str.indexOf(':')
+      if (idx === -1) return null
+      const day = str.slice(0, idx).trim()
+      const hours = str.slice(idx + 1).trim()
+      return WEEKDAY_ORDER.includes(day) ? { day, hours } : null
+    })
+    .filter((entry): entry is { day: string; hours: string } => Boolean(entry))
+    .sort((a, b) => WEEKDAY_ORDER.indexOf(a.day) - WEEKDAY_ORDER.indexOf(b.day))
+
+  const groups: { start: string; end: string; hours: string }[] = []
+  for (const entry of parsed) {
+    const last = groups[groups.length - 1]
+    if (last && last.hours === entry.hours) last.end = entry.day
+    else groups.push({ start: entry.day, end: entry.day, hours: entry.hours })
+  }
+  return groups.map((g) => ({
+    label: g.start === g.end ? g.start : `${g.start} – ${g.end}`,
+    hours: g.hours || 'Closed',
+  }))
+}
+
+function directionsUrl(prospect: DemoForgeProspect) {
+  const mapsUrl = text(prospect.google_maps_url)
+  if (mapsUrl) return mapsUrl
+  const address = text(prospect.address)
+  if (!address) return ''
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+}
+
+function reviewsUrl(prospect: DemoForgeProspect) {
+  const mapsUrl = text(prospect.google_maps_url)
+  if (mapsUrl) return mapsUrl
+  const name = text(prospect.business_name)
+  if (!name) return ''
+  const query = [name, text(prospect.address), 'reviews'].filter(Boolean).join(' ')
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+}
+
+function visitRow(label: string, valueHtml: string) {
+  return `<div class="visit-row"><span class="visit-label">${escapeHtml(label)}</span><span class="visit-value">${valueHtml}</span></div>`
+}
+
+function renderHeroSplit(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; secondaryCta: string; secondaryHref: string; trustLine: string; heroHighlight: string; rating: number | null; reviewCount: number | null }) {
+  const statBlock = opts.rating
+    ? `<span class="stat-number">${opts.rating.toFixed(1)}</span><span class="stat-stars">${'★'.repeat(Math.round(opts.rating))}${'☆'.repeat(5 - Math.round(opts.rating))}</span><span class="stat-caption">${opts.reviewCount ? `${opts.reviewCount} Google reviews` : 'Google rating'}</span>`
+    : `<strong>${escapeHtml(opts.heroHighlight)}</strong>`
   return `
     <section class="hero hero-split">
       <div class="hero-grid shell">
@@ -252,18 +308,18 @@ function renderHeroSplit(opts: { category: string; city: string; headline: strin
           <p class="lede">${escapeHtml(opts.subheadline)}</p>
           <div class="actions">
             <a class="button primary" href="${opts.ctaHref}">${escapeHtml(opts.primaryCta)}</a>
-            <a class="button secondary" href="#services">See what they offer</a>
+            <a class="button secondary" href="${escapeHtml(opts.secondaryHref)}"${opts.secondaryHref.startsWith('http') ? ' target="_blank" rel="noreferrer"' : ''}>${escapeHtml(opts.secondaryCta)}</a>
           </div>
         </div>
         <aside class="feature" aria-label="Business highlight">
           <span class="feature-kicker">${escapeHtml(opts.trustLine)}</span>
-          <strong>${escapeHtml(opts.heroHighlight)}</strong>
+          <div class="feature-stat">${statBlock}</div>
         </aside>
       </div>
     </section>`
 }
 
-function renderHeroStacked(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string }) {
+function renderHeroStacked(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; secondaryCta: string; secondaryHref: string; trustLine: string }) {
   return `
     <section class="hero hero-stack">
       <div class="hero-stack-inner shell">
@@ -272,7 +328,7 @@ function renderHeroStacked(opts: { category: string; city: string; headline: str
         <p class="lede center">${escapeHtml(opts.subheadline)}</p>
         <div class="actions center">
           <a class="button primary" href="${opts.ctaHref}">${escapeHtml(opts.primaryCta)}</a>
-          <a class="button secondary" href="#services">See what they offer</a>
+          <a class="button secondary" href="${escapeHtml(opts.secondaryHref)}"${opts.secondaryHref.startsWith('http') ? ' target="_blank" rel="noreferrer"' : ''}>${escapeHtml(opts.secondaryCta)}</a>
         </div>
         <div class="hero-stack-band">
           <span class="feature-kicker">${escapeHtml(opts.trustLine)}</span>
@@ -340,15 +396,29 @@ function renderStory(description: string, highlight: string, leadVariant = false
     </section>`
 }
 
-function renderContact(contactMarkup: string, safeName: string) {
+function renderContact(opts: { safeName: string; visitRowsHtml: string; hoursGroups: { label: string; hours: string }[]; directionsHref: string; ctaHref: string; primaryCta: string; reviewsHref: string }) {
+  const hoursMarkup = opts.hoursGroups.length
+    ? `<div class="hours-block"><h3>Hours</h3>${opts.hoursGroups.map((g) => `<div class="hours-row"><span>${escapeHtml(g.label)}</span><span>${escapeHtml(g.hours)}</span></div>`).join('')}</div>`
+    : ''
+  const actions = [
+    opts.directionsHref ? `<a class="button primary" href="${escapeHtml(opts.directionsHref)}" target="_blank" rel="noreferrer">Get directions</a>` : '',
+    opts.ctaHref ? `<a class="button secondary" href="${opts.ctaHref}">${escapeHtml(opts.primaryCta)}</a>` : '',
+  ].filter(Boolean).join('')
+  const reviewsLine = opts.reviewsHref
+    ? `<a class="text-link" href="${escapeHtml(opts.reviewsHref)}" target="_blank" rel="noreferrer">Read reviews on Google →</a>`
+    : ''
+
   return `
     <section id="contact" class="section shell">
-      <div class="contact">
-        <div>
-          <p class="eyebrow">Contact</p>
-          <h2>Reach ${safeName} directly.</h2>
+      <div class="contact contact-rich">
+        <div class="visit-info">
+          <p class="eyebrow">Visit</p>
+          <h2>Reach ${opts.safeName} directly.</h2>
+          <div class="visit-rows">${opts.visitRowsHtml || '<span>Add real phone, email, address, or social links before launch.</span>'}</div>
+          ${hoursMarkup}
+          ${reviewsLine}
         </div>
-        <div class="contact-list">${contactMarkup}</div>
+        <div class="contact-actions">${actions || '<span class="muted">Add a phone number or address to enable Call / Get Directions.</span>'}</div>
       </div>
     </section>`
 }
@@ -358,7 +428,7 @@ function buildCss(theme: DemoForgeTheme, layout: string) {
   const heroRadius = layout === 'angled-feature' ? '44px 12px 44px 12px' : layout === 'editorial-stack' ? '26px' : '34px'
   return `/* DemoForge design system: ${theme.key} / ${layout} */
 :root{color-scheme:${theme.mode};--bg:${theme.bg};--panel:${theme.panel};--card:${theme.card};--text:${theme.text};--muted:${theme.muted};--a1:${theme.accent1};--a2:${theme.accent2};--a3:${theme.accent3};--line:${theme.border};--heading:"${theme.headingFont}",Georgia,serif;--body:"${theme.bodyFont}",Inter,system-ui,sans-serif;--hero:${theme.heroImage}}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}.preview-bar{background:linear-gradient(90deg,var(--a1),var(--a2));color:#fff;text-align:center;font-size:13px;font-weight:800;letter-spacing:.04em;padding:10px 18px}.shell{width:min(1160px,calc(100% - 36px));margin:0 auto}.site-header{position:relative;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0}.brand{display:flex;align-items:center;gap:12px;font-family:var(--heading);font-weight:800;font-size:22px;letter-spacing:-.03em}.brand img{width:54px;height:54px;object-fit:contain;border-radius:16px;background:${isDark ? 'rgba(255,255,255,.95)' : '#fff'};padding:8px;box-shadow:0 18px 42px rgba(0,0,0,.18)}.mark{width:54px;height:54px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;font-weight:900}.nav{display:flex;gap:18px;color:var(--muted);font-weight:700;font-size:14px}.nav a:hover{color:var(--text)}.hero{padding:54px 0 78px;position:relative;overflow:hidden}.hero:before{content:"";position:absolute;inset:10% -10% auto auto;width:420px;height:420px;background:radial-gradient(circle, color-mix(in srgb,var(--a1) 38%,transparent), transparent 65%);filter:blur(4px);opacity:.9}.hero-grid{position:relative;display:grid;grid-template-columns:${layout === 'editorial-stack' ? '1fr' : '1.06fr .94fr'};gap:34px;align-items:center}.eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:900;color:var(--a2);margin:0 0 12px}.hero h1{font-family:var(--heading);font-size:clamp(44px,7.8vw,94px);line-height:.88;letter-spacing:-.07em;margin:0 0 18px;max-width:900px}.lede{font-size:clamp(17px,2vw,21px);color:var(--muted);max-width:680px;margin:0 0 28px}.actions{display:flex;gap:12px;flex-wrap:wrap}.button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:14px 22px;font-weight:900;border:1px solid var(--line)}.button.primary{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border:0;box-shadow:0 20px 48px color-mix(in srgb,var(--a1) 32%,transparent)}.button.secondary{background:${isDark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.88)'};color:var(--text)}.feature{min-height:390px;border-radius:${heroRadius};background:var(--hero);box-shadow:0 34px 90px rgba(0,0,0,.28);padding:28px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;position:relative}.feature:after{content:"";position:absolute;right:-80px;bottom:-80px;width:240px;height:240px;border:1px solid rgba(255,255,255,.38);border-radius:50%}.feature-kicker{align-self:flex-start;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:8px 12px;font-weight:900;font-size:12px}.feature strong{position:relative;color:#fff;font-family:var(--heading);font-size:clamp(30px,4.4vw,52px);line-height:.95;max-width:520px}.section{padding:74px 0}.section-title{display:grid;grid-template-columns:0.8fr 1.2fr;gap:28px;align-items:end;margin-bottom:28px}.section-title h2{font-family:var(--heading);font-size:clamp(32px,5vw,62px);line-height:.95;letter-spacing:-.06em;margin:0}.section-title p{color:var(--muted);font-size:18px;margin:0}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff 8%),var(--card));border:1px solid var(--line);border-radius:24px;padding:24px;min-height:230px;box-shadow:0 22px 48px rgba(0,0,0,.12)}.card .num{font-family:var(--heading);font-size:42px;color:var(--a2);line-height:1}.card h3{font-family:var(--heading);font-size:22px;line-height:1.02;margin:18px 0 10px}.card p{color:var(--muted);margin:0}.story{display:grid;grid-template-columns:1fr 1fr;gap:18px}.story-panel{background:var(--panel);border:1px solid var(--line);border-radius:32px;padding:34px}.story-panel h2{font-family:var(--heading);font-size:clamp(34px,5vw,66px);line-height:.93;margin:0 0 16px}.story-panel p{color:var(--muted);font-size:18px}.quote{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border-radius:32px;padding:34px;display:flex;flex-direction:column;justify-content:flex-end;min-height:320px}.quote p{font-family:var(--heading);font-size:clamp(28px,4vw,48px);line-height:.98;margin:0;color:#fff}.contact{background:var(--panel);border:1px solid var(--line);border-radius:36px;padding:34px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}.contact h2{font-family:var(--heading);font-size:clamp(34px,5vw,64px);line-height:.93;margin:0}.contact-list{display:grid;gap:12px}.contact-list a,.contact-list span{display:flex;align-items:center;justify-content:space-between;gap:12px;background:${isDark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.78)'};border:1px solid var(--line);border-radius:16px;padding:14px 16px;font-weight:800;color:var(--text);overflow-wrap:anywhere}footer{padding:30px 0 42px;color:var(--muted);text-align:center}.center{text-align:center;margin-left:auto;margin-right:auto}.actions.center{justify-content:center}.hero-stack-inner{position:relative;padding-top:10px}.hero-stack-inner h1{margin-left:auto;margin-right:auto}.hero-stack-band{margin-top:36px;border-radius:${heroRadius};background:var(--hero);min-height:220px;display:flex;align-items:flex-end;padding:24px;box-shadow:0 34px 90px rgba(0,0,0,.28)}.gallery-section{padding-top:0}.gallery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.gallery-tile{aspect-ratio:4/3;border-radius:20px;border:1px dashed var(--line);background:linear-gradient(160deg,color-mix(in srgb,var(--a1) 14%,var(--panel)),color-mix(in srgb,var(--a2) 10%,var(--panel)));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:12px}.gallery-tile span{font-weight:800;font-size:14px}.gallery-tile small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.services-list{display:grid;gap:14px}.service-row{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px 20px}.service-row .num{font-family:var(--heading);font-size:26px;color:var(--a2)}.service-row h3{margin:0 0 6px;font-family:var(--heading);font-size:19px}.service-row p{margin:0;color:var(--muted)}.story-lead .story-panel{order:0}@media(max-width:920px){.hero-grid,.section-title,.story,.contact{grid-template-columns:1fr}.cards,.gallery-grid{grid-template-columns:repeat(2,1fr)}.nav{display:none}.feature{min-height:290px}}@media(max-width:620px){.shell{width:min(100% - 28px,1160px)}.site-header{padding:16px 0}.cards,.gallery-grid{grid-template-columns:1fr}.hero{padding-top:32px}.card{min-height:auto}.contact{padding:24px}.brand{font-size:18px}.brand img,.mark{width:44px;height:44px}.feature strong{font-size:32px}.service-row{grid-template-columns:1fr}}`
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}.preview-bar{background:linear-gradient(90deg,var(--a1),var(--a2));color:#fff;text-align:center;font-size:13px;font-weight:800;letter-spacing:.04em;padding:10px 18px}.shell{width:min(1160px,calc(100% - 36px));margin:0 auto}.site-header{position:relative;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0}.brand{display:flex;align-items:center;gap:12px;font-family:var(--heading);font-weight:800;font-size:22px;letter-spacing:-.03em}.brand img{width:54px;height:54px;object-fit:contain;border-radius:16px;background:${isDark ? 'rgba(255,255,255,.95)' : '#fff'};padding:8px;box-shadow:0 18px 42px rgba(0,0,0,.18)}.mark{width:54px;height:54px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;font-weight:900}.nav{display:flex;gap:18px;color:var(--muted);font-weight:700;font-size:14px}.nav a:hover{color:var(--text)}.hero{padding:54px 0 78px;position:relative;overflow:hidden}.hero:before{content:"";position:absolute;inset:10% -10% auto auto;width:420px;height:420px;background:radial-gradient(circle, color-mix(in srgb,var(--a1) 38%,transparent), transparent 65%);filter:blur(4px);opacity:.9}.hero-grid{position:relative;display:grid;grid-template-columns:${layout === 'editorial-stack' ? '1fr' : '1.06fr .94fr'};gap:34px;align-items:center}.eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:900;color:var(--a2);margin:0 0 12px}.hero h1{font-family:var(--heading);font-size:clamp(44px,7.8vw,94px);line-height:.88;letter-spacing:-.07em;margin:0 0 18px;max-width:900px}.lede{font-size:clamp(17px,2vw,21px);color:var(--muted);max-width:680px;margin:0 0 28px}.actions{display:flex;gap:12px;flex-wrap:wrap}.button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:14px 22px;font-weight:900;border:1px solid var(--line)}.button.primary{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border:0;box-shadow:0 20px 48px color-mix(in srgb,var(--a1) 32%,transparent)}.button.secondary{background:${isDark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.88)'};color:var(--text)}.feature{min-height:390px;border-radius:${heroRadius};background:var(--hero);box-shadow:0 34px 90px rgba(0,0,0,.28);padding:28px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;position:relative}.feature:after{content:"";position:absolute;right:-80px;bottom:-80px;width:240px;height:240px;border:1px solid rgba(255,255,255,.38);border-radius:50%}.feature-kicker{align-self:flex-start;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:8px 12px;font-weight:900;font-size:12px}.feature strong{position:relative;color:#fff;font-family:var(--heading);font-size:clamp(30px,4.4vw,52px);line-height:.95;max-width:520px}.section{padding:74px 0}.section-title{display:grid;grid-template-columns:0.8fr 1.2fr;gap:28px;align-items:end;margin-bottom:28px}.section-title h2{font-family:var(--heading);font-size:clamp(32px,5vw,62px);line-height:.95;letter-spacing:-.06em;margin:0}.section-title p{color:var(--muted);font-size:18px;margin:0}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff 8%),var(--card));border:1px solid var(--line);border-radius:24px;padding:24px;min-height:230px;box-shadow:0 22px 48px rgba(0,0,0,.12)}.card .num{font-family:var(--heading);font-size:42px;color:var(--a2);line-height:1}.card h3{font-family:var(--heading);font-size:22px;line-height:1.02;margin:18px 0 10px}.card p{color:var(--muted);margin:0}.story{display:grid;grid-template-columns:1fr 1fr;gap:18px}.story-panel{background:var(--panel);border:1px solid var(--line);border-radius:32px;padding:34px}.story-panel h2{font-family:var(--heading);font-size:clamp(34px,5vw,66px);line-height:.93;margin:0 0 16px}.story-panel p{color:var(--muted);font-size:18px}.quote{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border-radius:32px;padding:34px;display:flex;flex-direction:column;justify-content:flex-end;min-height:320px}.quote p{font-family:var(--heading);font-size:clamp(28px,4vw,48px);line-height:.98;margin:0;color:#fff}.contact{background:var(--panel);border:1px solid var(--line);border-radius:36px;padding:34px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}.contact h2{font-family:var(--heading);font-size:clamp(34px,5vw,64px);line-height:.93;margin:0}.contact-list{display:grid;gap:12px}.contact-list a,.contact-list span{display:flex;align-items:center;justify-content:space-between;gap:12px;background:${isDark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.78)'};border:1px solid var(--line);border-radius:16px;padding:14px 16px;font-weight:800;color:var(--text);overflow-wrap:anywhere}footer{padding:30px 0 42px;color:var(--muted);text-align:center}.center{text-align:center;margin-left:auto;margin-right:auto}.actions.center{justify-content:center}.hero-stack-inner{position:relative;padding-top:10px}.hero-stack-inner h1{margin-left:auto;margin-right:auto}.hero-stack-band{margin-top:36px;border-radius:${heroRadius};background:var(--hero);min-height:220px;display:flex;align-items:flex-end;padding:24px;box-shadow:0 34px 90px rgba(0,0,0,.28)}.gallery-section{padding-top:0}.gallery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.gallery-tile{aspect-ratio:4/3;border-radius:20px;border:1px dashed var(--line);background:linear-gradient(160deg,color-mix(in srgb,var(--a1) 14%,var(--panel)),color-mix(in srgb,var(--a2) 10%,var(--panel)));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:12px}.gallery-tile span{font-weight:800;font-size:14px}.gallery-tile small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.services-list{display:grid;gap:14px}.service-row{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px 20px}.service-row .num{font-family:var(--heading);font-size:26px;color:var(--a2)}.service-row h3{margin:0 0 6px;font-family:var(--heading);font-size:19px}.service-row p{margin:0;color:var(--muted)}.story-lead .story-panel{order:0}.feature-stat{display:flex;flex-direction:column;gap:4px}.stat-number{font-family:var(--heading);font-size:clamp(40px,5vw,58px);line-height:1;color:#fff}.stat-stars{color:${isDark ? '#fbbf24' : '#fff'};letter-spacing:2px;font-size:18px}.stat-caption{color:rgba(255,255,255,.85);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em}.contact-rich{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:start}.visit-rows{display:grid;gap:10px;margin:20px 0}.visit-row{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:700}.visit-label{color:var(--muted);font-weight:700}.visit-value{text-align:right;overflow-wrap:anywhere}.hours-block{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}.hours-block h3{font-family:var(--heading);font-size:20px;margin:0 0 10px}.hours-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;color:var(--muted);font-weight:600}.text-link{display:inline-block;margin-top:18px;font-weight:800;color:var(--a2)}.contact-actions{display:flex;flex-direction:column;gap:12px;align-items:stretch}.contact-actions .button{width:100%}.contact-actions .muted{color:var(--muted);font-size:14px}@media(max-width:920px){.hero-grid,.section-title,.story,.contact,.contact-rich{grid-template-columns:1fr}.cards,.gallery-grid{grid-template-columns:repeat(2,1fr)}.nav{display:none}.feature{min-height:290px}}@media(max-width:620px){.shell{width:min(100% - 28px,1160px)}.site-header{padding:16px 0}.cards,.gallery-grid{grid-template-columns:1fr}.hero{padding-top:32px}.card{min-height:auto}.contact{padding:24px}.brand{font-size:18px}.brand img,.mark{width:44px;height:44px}.feature strong{font-size:32px}.service-row{grid-template-columns:1fr}.visit-row{flex-direction:column;gap:2px}.visit-value{text-align:left}}`
 }
 
 export function generateDemoForgeSite({ prospect, research = {}, sources = [] }: { prospect: DemoForgeProspect; research?: Record<string, unknown>; sources?: DemoForgeSource[] }) {
@@ -369,7 +439,6 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
   const logo = logoUrl(prospect, research)
   const services = servicesFromContext(prospect, research)
   const description = businessDescription(prospect, research)
-  const contacts = contactLines(prospect)
   const place = (research.google_place && typeof research.google_place === 'object') ? research.google_place as Record<string, unknown> : {}
   const rating = numberValue(place.rating) || numberValue(prospect.google_rating)
   const reviewCount = numberValue(place.reviewCount) || numberValue(prospect.google_review_count)
@@ -379,6 +448,11 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
   const safeName = escapeHtml(name)
   const ctaHref = text(prospect.phone) ? `tel:${escapeHtml(text(prospect.phone))}` : '#contact'
   const primaryCta = text(prospect.phone) ? 'Call now' : 'Get in touch'
+  const directionsHref = directionsUrl(prospect)
+  const reviewsHref = rating ? reviewsUrl(prospect) : ''
+  const secondaryHref = directionsHref || '#services'
+  const secondaryCta = directionsHref ? 'Get directions' : 'See what they offer'
+  const hoursGroups = summarizeHours(prospect)
 
   // Headline, hero highlight, and trust line all come from real data (Google rating/reviews,
   // city, socials) with human-written creative direction taking priority when it's supplied.
@@ -388,7 +462,6 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
   const subheadline = description.length > 230 ? `${description.slice(0, 230)}…` : description
   const heroHighlight = text(prospect.creative_direction)
     || text(prospect.style_inspiration)
-    || (rating ? `${rating.toFixed(1)}★ · ${reviewCount || 0} Google review${reviewCount === 1 ? '' : 's'}` : '')
     || (igHandle ? `Find them on Instagram ${igHandle}` : '')
     || (fbLinked ? 'Find them on Facebook' : '')
     || (city ? `Serving ${city}` : category)
@@ -405,40 +478,52 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
           <h3>${escapeHtml(service.split(':')[0].slice(0, 52))}</h3>
           <p>${escapeHtml(service)}</p>
         </article>`).join('')
-  const contactMarkup = contacts.length ? contacts.map((item) => item).join('\n') : '<span>Add real phone, email, booking, or social links before launch.</span>'
+
+  const visitRowsHtml = [
+    text(prospect.address) ? visitRow('Address', escapeHtml(text(prospect.address))) : '',
+    text(prospect.phone) ? visitRow('Phone', `<a href="tel:${escapeHtml(text(prospect.phone))}">${escapeHtml(text(prospect.phone))}</a>`) : '',
+    text(prospect.email) ? visitRow('Email', `<a href="mailto:${escapeHtml(text(prospect.email))}">${escapeHtml(text(prospect.email))}</a>`) : '',
+    text(prospect.instagram) ? visitRow('Instagram', socialLink(igHandle || 'Instagram', text(prospect.instagram))) : '',
+    text(prospect.facebook) ? visitRow('Facebook', socialLink('Facebook', text(prospect.facebook))) : '',
+    text(prospect.website) ? visitRow('Website', socialLink('Website', text(prospect.website))) : '',
+  ].filter(Boolean).join('')
   const catKey = categoryKey(prospect)
+
+  const heroOpts = { category, city, headline, subheadline, primaryCta, ctaHref, secondaryCta, secondaryHref, trustLine, heroHighlight, rating, reviewCount }
+  const stackedHeroOpts = { category, city, headline, subheadline, primaryCta, ctaHref, secondaryCta, secondaryHref, trustLine }
+  const contactOpts = { safeName, visitRowsHtml, hoursGroups, directionsHref, ctaHref, primaryCta, reviewsHref }
 
   // Each layout assembles a genuinely different section order/composition,
   // not just a CSS tweak, so demos from the same category still read differently.
   let bodySections = ''
   if (layout === 'editorial-stack') {
     bodySections = [
-      renderHeroStacked({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine }),
+      renderHeroStacked(stackedHeroOpts),
       renderStory(description, storyHighlight, true),
       renderServicesList(services, safeName),
-      renderContact(contactMarkup, safeName),
+      renderContact(contactOpts),
     ].join('\n')
   } else if (layout === 'angled-feature') {
     bodySections = [
-      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
+      renderHeroSplit(heroOpts),
       renderGallery(catKey),
       renderServicesCards(serviceCards, safeName),
-      renderContact(contactMarkup, safeName),
+      renderContact(contactOpts),
     ].join('\n')
   } else if (layout === 'local-story') {
     bodySections = [
-      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
+      renderHeroSplit(heroOpts),
       renderStory(description, storyHighlight),
       renderServicesCards(serviceCards, safeName),
-      renderContact(contactMarkup, safeName),
+      renderContact(contactOpts),
     ].join('\n')
   } else {
     // split-impact (default)
     bodySections = [
-      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
+      renderHeroSplit(heroOpts),
       renderServicesCards(serviceCards, safeName),
       renderStory(description, storyHighlight),
-      renderContact(contactMarkup, safeName),
+      renderContact(contactOpts),
     ].join('\n')
   }
 
