@@ -177,11 +177,47 @@ function servicesFromContext(prospect: DemoForgeProspect, research: Record<strin
   return defaults[key] || defaults.local
 }
 
+function cityFromAddress(address = '') {
+  if (!address) return ''
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean)
+  if (parts.length < 2) return ''
+  // "123 Main St, Phoenix, AZ 85001" -> take the segment right after the street
+  return parts[1]
+}
+
+function handleFromSocial(url = '') {
+  if (!url) return ''
+  const cleaned = url.replace(/^https?:\/\//i, '').replace(/^www\./i, '')
+  const match = cleaned.match(/^(?:instagram|facebook)\.com\/([^/?#]+)/i)
+  if (match && match[1]) return `@${match[1]}`
+  return ''
+}
+
+function articleFor(word = '') {
+  return /^[aeiou]/i.test(word.trim()) ? 'an' : 'a'
+}
+
 function businessDescription(prospect: DemoForgeProspect, research: Record<string, unknown>) {
   const custom = text(prospect.business_context) || text(prospect.notes) || text(research.research_summary)
   if (custom) return custom.slice(0, 420)
+
+  const name = text(prospect.business_name, 'This business')
   const category = text(prospect.category, 'local business')
-  return `${text(prospect.business_name, 'This business')} is presented as a trustworthy ${category.toLowerCase()} with a polished website demo designed to help visitors understand the offer and take action quickly.`
+  const city = cityFromAddress(text(prospect.address))
+  const rating = numberValue(prospect.google_rating)
+  const reviewCount = numberValue(prospect.google_review_count)
+  const igHandle = handleFromSocial(text(prospect.instagram))
+  const fbLinked = Boolean(text(prospect.facebook))
+
+  const opening = city
+    ? `${name} is ${articleFor(category)} ${category.toLowerCase()} in ${city}.`
+    : `${name} is ${articleFor(category)} ${category.toLowerCase()}.`
+  const facts: string[] = []
+  if (rating) facts.push(`Rated ${rating.toFixed(1)} on Google${reviewCount ? ` from ${reviewCount} reviews` : ''}.`)
+  if (igHandle) facts.push(`Active on Instagram as ${igHandle}.`)
+  else if (fbLinked) facts.push('Active on Facebook.')
+
+  return facts.length ? `${opening} ${facts.join(' ')}` : opening
 }
 
 function logoUrl(prospect: DemoForgeProspect, research: Record<string, unknown>) {
@@ -206,37 +242,37 @@ function contactLines(prospect: DemoForgeProspect) {
   ].filter(Boolean)
 }
 
-function renderHeroSplit(opts: { theme: DemoForgeTheme; category: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string; direction: string }) {
+function renderHeroSplit(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string; heroHighlight: string }) {
   return `
     <section class="hero hero-split">
       <div class="hero-grid shell">
         <div class="hero-copy">
-          <p class="eyebrow">${escapeHtml(opts.category)} · ${escapeHtml(opts.theme.key.replaceAll('-', ' '))}</p>
+          <p class="eyebrow">${escapeHtml(opts.category)}${opts.city ? ` · ${opts.city}` : ''}</p>
           <h1>${escapeHtml(opts.headline)}</h1>
           <p class="lede">${escapeHtml(opts.subheadline)}</p>
           <div class="actions">
             <a class="button primary" href="${opts.ctaHref}">${escapeHtml(opts.primaryCta)}</a>
-            <a class="button secondary" href="#services">Explore the demo</a>
+            <a class="button secondary" href="#services">See what they offer</a>
           </div>
         </div>
-        <aside class="feature" aria-label="Website concept visual">
+        <aside class="feature" aria-label="Business highlight">
           <span class="feature-kicker">${escapeHtml(opts.trustLine)}</span>
-          <strong>${escapeHtml(opts.direction)}</strong>
+          <strong>${escapeHtml(opts.heroHighlight)}</strong>
         </aside>
       </div>
     </section>`
 }
 
-function renderHeroStacked(opts: { theme: DemoForgeTheme; category: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string }) {
+function renderHeroStacked(opts: { category: string; city: string; headline: string; subheadline: string; primaryCta: string; ctaHref: string; trustLine: string }) {
   return `
     <section class="hero hero-stack">
       <div class="hero-stack-inner shell">
-        <p class="eyebrow center">${escapeHtml(opts.category)} · ${escapeHtml(opts.theme.key.replaceAll('-', ' '))}</p>
+        <p class="eyebrow center">${escapeHtml(opts.category)}${opts.city ? ` · ${opts.city}` : ''}</p>
         <h1 class="center">${escapeHtml(opts.headline)}</h1>
         <p class="lede center">${escapeHtml(opts.subheadline)}</p>
         <div class="actions center">
           <a class="button primary" href="${opts.ctaHref}">${escapeHtml(opts.primaryCta)}</a>
-          <a class="button secondary" href="#services">Explore the demo</a>
+          <a class="button secondary" href="#services">See what they offer</a>
         </div>
         <div class="hero-stack-band">
           <span class="feature-kicker">${escapeHtml(opts.trustLine)}</span>
@@ -262,18 +298,17 @@ function renderGallery(category: string) {
     </section>`
 }
 
-function renderServicesCards(serviceCards: string) {
+function renderServicesCards(serviceCards: string, safeName: string) {
   return `
     <section id="services" class="section shell">
       <div class="section-title">
-        <div><p class="eyebrow">What customers see first</p><h2>Clear reasons to choose this business.</h2></div>
-        <p>This demo organizes the business around the decisions real visitors make: what you offer, why it matters, and how quickly they can reach you.</p>
+        <div><p class="eyebrow">What we offer</p><h2>Services from ${safeName}.</h2></div>
       </div>
       <div class="cards">${serviceCards}</div>
     </section>`
 }
 
-function renderServicesList(services: string[]) {
+function renderServicesList(services: string[], safeName: string) {
   const rows = services.slice(0, 4).map((service, index) => `
         <div class="service-row">
           <div class="num">0${index + 1}</div>
@@ -285,35 +320,33 @@ function renderServicesList(services: string[]) {
   return `
     <section id="services" class="section shell">
       <div class="section-title">
-        <div><p class="eyebrow">What customers see first</p><h2>Clear reasons to choose this business.</h2></div>
-        <p>Laid out as a simple, scannable list so visitors get the full picture fast.</p>
+        <div><p class="eyebrow">What we offer</p><h2>Services from ${safeName}.</h2></div>
       </div>
       <div class="services-list">${rows}</div>
     </section>`
 }
 
-function renderStory(description: string, leadVariant = false) {
+function renderStory(description: string, highlight: string, leadVariant = false) {
   return `
     <section id="story" class="section shell story ${leadVariant ? 'story-lead' : ''}">
       <div class="story-panel">
-        <p class="eyebrow">Brand story</p>
-        <h2>A more memorable first impression.</h2>
+        <p class="eyebrow">About</p>
+        <h2>The story so far.</h2>
         <p>${escapeHtml(description)}</p>
       </div>
       <div class="quote">
-        <p>Designed to feel custom before the first sales call.</p>
+        <p>${escapeHtml(highlight)}</p>
       </div>
     </section>`
 }
 
-function renderContact(contactMarkup: string) {
+function renderContact(contactMarkup: string, safeName: string) {
   return `
     <section id="contact" class="section shell">
       <div class="contact">
         <div>
-          <p class="eyebrow">Next step</p>
-          <h2>Make it easy for visitors to act.</h2>
-          <p class="lede">This preview can be updated with real photos, booking links, forms, menus, services, and launch-ready domain details.</p>
+          <p class="eyebrow">Contact</p>
+          <h2>Reach ${safeName} directly.</h2>
         </div>
         <div class="contact-list">${contactMarkup}</div>
       </div>
@@ -340,12 +373,32 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
   const place = (research.google_place && typeof research.google_place === 'object') ? research.google_place as Record<string, unknown> : {}
   const rating = numberValue(place.rating) || numberValue(prospect.google_rating)
   const reviewCount = numberValue(place.reviewCount) || numberValue(prospect.google_review_count)
-  const direction = text(prospect.creative_direction) || text(prospect.style_inspiration) || `${theme.key} ${layout}`
-  const headline = text(prospect.demo_brief) || `${name} deserves a website as polished as the work.`
-  const subheadline = description.length > 230 ? `${description.slice(0, 230)}…` : description
-  const primaryCta = text(prospect.phone) ? 'Call now' : 'Get in touch'
+  const city = cityFromAddress(text(prospect.address))
+  const igHandle = handleFromSocial(text(prospect.instagram))
+  const fbLinked = Boolean(text(prospect.facebook))
   const safeName = escapeHtml(name)
   const ctaHref = text(prospect.phone) ? `tel:${escapeHtml(text(prospect.phone))}` : '#contact'
+  const primaryCta = text(prospect.phone) ? 'Call now' : 'Get in touch'
+
+  // Headline, hero highlight, and trust line all come from real data (Google rating/reviews,
+  // city, socials) with human-written creative direction taking priority when it's supplied.
+  // No invented adjectives ("trustworthy," "polished") when there's nothing behind them.
+  const headline = text(prospect.demo_brief)
+    || (rating ? `${name} — rated ${rating.toFixed(1)} on Google` : `${name}${city ? ` — ${category} in ${city}` : ` — ${category}`}`)
+  const subheadline = description.length > 230 ? `${description.slice(0, 230)}…` : description
+  const heroHighlight = text(prospect.creative_direction)
+    || text(prospect.style_inspiration)
+    || (rating ? `${rating.toFixed(1)}★ · ${reviewCount || 0} Google review${reviewCount === 1 ? '' : 's'}` : '')
+    || (igHandle ? `Find them on Instagram ${igHandle}` : '')
+    || (fbLinked ? 'Find them on Facebook' : '')
+    || (city ? `Serving ${city}` : category)
+  const trustLine = rating
+    ? `${rating.toFixed(1)} star Google profile${reviewCount ? ` · ${reviewCount} reviews` : ''}`
+    : (igHandle || (fbLinked ? 'On Facebook' : '') || (city ? `Based in ${city}` : category))
+  const storyHighlight = rating
+    ? `${rating.toFixed(1)}★ on Google${reviewCount ? ` from ${reviewCount} reviews` : ''}`
+    : (igHandle ? `Follow along on Instagram ${igHandle}` : fbLinked ? 'Follow along on Facebook' : `${category}${city ? ` in ${city}` : ''}`)
+
   const serviceCards = services.slice(0, 4).map((service, index) => `
         <article class="card">
           <div class="num">0${index + 1}</div>
@@ -353,7 +406,6 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
           <p>${escapeHtml(service)}</p>
         </article>`).join('')
   const contactMarkup = contacts.length ? contacts.map((item) => item).join('\n') : '<span>Add real phone, email, booking, or social links before launch.</span>'
-  const trustLine = rating ? `${rating.toFixed(1)} star Google profile${reviewCount ? ` · ${reviewCount} reviews` : ''}` : 'Built around trust, clarity, and fast contact.'
   const catKey = categoryKey(prospect)
 
   // Each layout assembles a genuinely different section order/composition,
@@ -361,32 +413,32 @@ export function generateDemoForgeSite({ prospect, research = {}, sources = [] }:
   let bodySections = ''
   if (layout === 'editorial-stack') {
     bodySections = [
-      renderHeroStacked({ theme, category, headline, subheadline, primaryCta, ctaHref, trustLine }),
-      renderStory(description, true),
-      renderServicesList(services),
-      renderContact(contactMarkup),
+      renderHeroStacked({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine }),
+      renderStory(description, storyHighlight, true),
+      renderServicesList(services, safeName),
+      renderContact(contactMarkup, safeName),
     ].join('\n')
   } else if (layout === 'angled-feature') {
     bodySections = [
-      renderHeroSplit({ theme, category, headline, subheadline, primaryCta, ctaHref, trustLine, direction }),
+      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
       renderGallery(catKey),
-      renderServicesCards(serviceCards),
-      renderContact(contactMarkup),
+      renderServicesCards(serviceCards, safeName),
+      renderContact(contactMarkup, safeName),
     ].join('\n')
   } else if (layout === 'local-story') {
     bodySections = [
-      renderHeroSplit({ theme, category, headline, subheadline, primaryCta, ctaHref, trustLine, direction }),
-      renderStory(description),
-      renderServicesCards(serviceCards),
-      renderContact(contactMarkup),
+      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
+      renderStory(description, storyHighlight),
+      renderServicesCards(serviceCards, safeName),
+      renderContact(contactMarkup, safeName),
     ].join('\n')
   } else {
     // split-impact (default)
     bodySections = [
-      renderHeroSplit({ theme, category, headline, subheadline, primaryCta, ctaHref, trustLine, direction }),
-      renderServicesCards(serviceCards),
-      renderStory(description),
-      renderContact(contactMarkup),
+      renderHeroSplit({ category, city, headline, subheadline, primaryCta, ctaHref, trustLine, heroHighlight }),
+      renderServicesCards(serviceCards, safeName),
+      renderStory(description, storyHighlight),
+      renderContact(contactMarkup, safeName),
     ].join('\n')
   }
 
