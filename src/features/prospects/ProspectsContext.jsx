@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { useWorkspace } from '../workspace/WorkspaceContext'
 import { logAuditEvent } from '../../lib/audit'
-import { generateDemoForgeSite } from '../../lib/demoForge'
+import { generateDemoForgeSite } from '../../../supabase/functions/_shared/demo-forge'
 
 const ProspectsContext = createContext(null)
 

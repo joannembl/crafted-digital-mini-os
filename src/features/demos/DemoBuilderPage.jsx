@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useProspects } from '../prospects/ProspectsContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { demoStatuses, labelFor } from '../prospects/prospectOptions'
-import { getCategoryKey, getThemeOptions, LAYOUT_OPTIONS } from '../../lib/demoForge'
+import { getCategoryKey, getThemeOptions, LAYOUT_OPTIONS } from '../../../supabase/functions/_shared/demo-forge'
 
 function deploymentLabel(status) {
   switch (status) {
